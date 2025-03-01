@@ -31,6 +31,10 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.integration</groupId>
             <artifactId>spring-integration-redis</artifactId>
         </dependency>
@@ -115,6 +119,8 @@
                 <configuration>
                     <argLine>-javaagent:"${org.mockito:mockito-core:jar}" -Xshare:off</argLine>
                     <environmentVariables>
+                        <STEROPES_INITDB_SCHEMA_FILE>initdb/schema.sql</STEROPES_INITDB_SCHEMA_FILE>
+                        <SPRING_DATASOURCE_HIKARI_TRANSACTION_ISOLATION>TRANSACTION_REPEATABLE_READ</SPRING_DATASOURCE_HIKARI_TRANSACTION_ISOLATION>
                     </environmentVariables>
                 </configuration>
             </plugin>
