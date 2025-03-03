@@ -1,4 +1,5 @@
-CREATE TABLE account (
+DROP TABLE IF EXISTS account;
+CREATE TABLE IF NOT EXISTS account (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     branch_number VARCHAR(3) NOT NULL CHECK (branch_number ~ '^[0-9]{3}$'),
     account_number VARCHAR(7) NOT NULL CHECK (account_number ~ '^[0-9]{7}$'),
@@ -7,7 +8,8 @@ CREATE TABLE account (
     PRIMARY KEY (id)
 );
 
-CREATE TABLE account_transaction (
+DROP TABLE IF EXISTS account_transaction;
+CREATE TABLE IF NOT EXISTS account_transaction (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     branch_number VARCHAR(3) NOT NULL CHECK (branch_number ~ '^[0-9]{3}$'),
     account_number VARCHAR(7) NOT NULL CHECK (account_number ~ '^[0-9]{7}$'),

@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 import lombok.Data;
 
 @RestController
-@RequestMapping(path = "/api/accoount/open")
+@RequestMapping(path = "/api/account/open")
 public class OpenAccountController {
 
     @Data
