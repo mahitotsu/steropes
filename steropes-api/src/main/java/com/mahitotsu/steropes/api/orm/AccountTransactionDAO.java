@@ -4,6 +4,6 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface AccountTransactionRepository extends JpaRepository<AccountTransaction, UUID> {
+public interface AccountTransactionDAO extends JpaRepository<AccountTransaction, UUID> {
 
 }

@@ -21,8 +21,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.integration.aws.lock.DynamoDbLockRegistry;
-import org.springframework.integration.aws.lock.DynamoDbLockRepository;
 import org.springframework.jdbc.datasource.DelegatingDataSource;
 import org.springframework.jdbc.datasource.init.DataSourceInitializer;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
@@ -34,32 +32,12 @@ import com.zaxxer.hikari.HikariDataSource;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dsql.DsqlUtilities;
-import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 
 @Configuration
-public class InfraConfig {
+public class RdbConfig {
 
     @Autowired
     private ResourceLoader resourceLoader;
-
-    @Bean
-    public DynamoDbAsyncClient dynamoDbAsyncClient() {
-        return DynamoDbAsyncClient.create();
-    }
-
-    @Bean
-    public DynamoDbLockRepository dynamoDbLockRepository() {
-
-        final DynamoDbLockRepository dynamoDbLockRepository = new DynamoDbLockRepository(this.dynamoDbAsyncClient());
-        return dynamoDbLockRepository;
-    }
-
-    @Bean
-    public DynamoDbLockRegistry dynamoDbLockRegistry() {
-
-        final DynamoDbLockRegistry dynamoDbLockRegistry = new DynamoDbLockRegistry(this.dynamoDbLockRepository());
-        return dynamoDbLockRegistry;
-    }
 
     @Bean
     @ConfigurationProperties(prefix = "spring.datasource")

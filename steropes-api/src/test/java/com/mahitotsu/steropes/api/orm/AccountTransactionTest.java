@@ -20,7 +20,7 @@ public class AccountTransactionTest extends AbstractTestBase {
     private Random random = new Random();
 
     @Autowired
-    private AccountTransactionRepository accountTransactionRepository;
+    private AccountTransactionDAO accountTransactionRepository;
 
     private String randomBranchNumber() {
         return String.format("%03d", this.random.nextInt(1000));
