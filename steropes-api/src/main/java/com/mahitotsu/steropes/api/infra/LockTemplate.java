@@ -9,6 +9,8 @@ import org.springframework.integration.support.locks.LockRegistry;
 
 public class LockTemplate {
 
+    private static final int DEFAULT_LOCK_TIMEOUT_MILLIS = 5000;
+
     public LockTemplate(final LockRegistry lockRegistry) {
         this.lockRegistry = lockRegistry;
     }
@@ -27,7 +29,8 @@ public class LockTemplate {
         boolean locked = false;
 
         try {
-            locked = lock.tryLock(this.lockTimeout == null ? 5000 : this.lockTimeout.toMillis(), TimeUnit.MILLISECONDS);
+            locked = lock.tryLock(this.lockTimeout == null ? DEFAULT_LOCK_TIMEOUT_MILLIS
+                    : this.lockTimeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             throw new RuntimeException("Thread was interrupted while attempting to acquire lock for key: " + lockKey,
                     e);

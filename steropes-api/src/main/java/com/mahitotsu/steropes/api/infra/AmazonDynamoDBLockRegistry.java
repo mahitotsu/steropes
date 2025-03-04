@@ -7,6 +7,7 @@ import java.util.concurrent.locks.Lock;
 import org.springframework.integration.support.locks.LockRegistry;
 
 import com.amazonaws.services.dynamodbv2.AcquireLockOptions;
+import com.amazonaws.services.dynamodbv2.AcquireLockOptions.AcquireLockOptionsBuilder;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBLockClient;
 import com.amazonaws.services.dynamodbv2.LockItem;
 
@@ -26,8 +27,13 @@ public class AmazonDynamoDBLockRegistry implements LockRegistry {
     private static class AmazonDynamoDBLock implements Lock {
 
         public AmazonDynamoDBLock(final AmazonDynamoDBLockClient lockClient, final Object lockKey) {
+
             this.lockClient = lockClient;
-            this.lockKey = String.class.cast(lockKey);
+
+            final String[] lockKeys = String.class.cast(lockKey).split("\\.");
+            this.lockKey = lockKeys[0];
+            this.scope = lockKeys.length > 1 ? lockKeys[1] : "_";
+
             this.currentLock = null;
         }
 
@@ -35,13 +41,24 @@ public class AmazonDynamoDBLockRegistry implements LockRegistry {
 
         private String lockKey;
 
+        private String scope;
+
         private LockItem currentLock;
+
+        private AcquireLockOptionsBuilder baseOptions() {
+
+            final AcquireLockOptionsBuilder builder = AcquireLockOptions.builder(this.lockKey);
+            if (this.scope != null) {
+                builder.withSortKey(this.scope);
+            }
+            return builder;
+        }
 
         @Override
         public void lock() {
 
             try {
-                this.currentLock = this.lockClient.acquireLock(AcquireLockOptions.builder(this.lockKey).build());
+                this.currentLock = this.lockClient.acquireLock(this.baseOptions().build());
             } catch (InterruptedException e) {
                 Thread.interrupted();
                 throw new RuntimeException("Lock acquisition was interrupted", e);
@@ -50,15 +67,14 @@ public class AmazonDynamoDBLockRegistry implements LockRegistry {
 
         @Override
         public void lockInterruptibly() throws InterruptedException {
-            this.currentLock = this.lockClient.acquireLock(AcquireLockOptions.builder(this.lockKey).build());
+            this.currentLock = this.lockClient.acquireLock(this.baseOptions().build());
         }
 
         @Override
         public boolean tryLock() {
 
             try {
-                this.currentLock = this.lockClient
-                        .tryAcquireLock(AcquireLockOptions.builder(this.lockKey).build()).orElse(null);
+                this.currentLock = this.lockClient.tryAcquireLock(this.baseOptions().build()).orElse(null);
             } catch (final InterruptedException e) {
                 this.currentLock = null;
             }
@@ -70,7 +86,7 @@ public class AmazonDynamoDBLockRegistry implements LockRegistry {
 
             try {
                 this.currentLock = this.lockClient
-                        .tryAcquireLock(AcquireLockOptions.builder(this.lockKey)
+                        .tryAcquireLock(this.baseOptions()
                                 .withAdditionalTimeToWaitForLock(time)
                                 .withTimeUnit(unit)
                                 .build())

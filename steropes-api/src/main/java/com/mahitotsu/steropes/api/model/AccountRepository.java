@@ -25,11 +25,17 @@ public class AccountRepository {
     private LockTemplate lockTemplate;
 
     @Transactional
-    @DsqlRetry
-    public Account openAccount(final String branchCode, final BigDecimal maxBalance) {
+    public Account openAccount(final String branchNumber, final BigDecimal maxBalance) {
 
-        final Account account = this.lockTemplate.doWithLock("OPEN_ACCOUNT",
-                () -> this.accountDAO.findFirstByBranchNumberOrderByAccountNumberDesc(branchCode).orElse(null));
-        return account;
+        return this.lockTemplate.doWithLock("OPEN_ACCOUNT." + branchNumber,
+                () -> {
+                    final int lastAccountNumber = this.accountDAO
+                            .findFirstByBranchNumberOrderByAccountNumberDesc(branchNumber)
+                            .map(a -> Integer.parseInt(a.getAccountNumber())).orElse(0);
+                    final Account newAccount = new Account(branchNumber, String.format("%07d", lastAccountNumber + 1),
+                            maxBalance);
+                    this.accountDAO.save(newAccount);
+                    return this.accountDAO.findById(newAccount.getId()).get();
+                });
     }
 }
