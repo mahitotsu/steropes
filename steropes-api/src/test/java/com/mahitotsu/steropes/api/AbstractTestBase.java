@@ -1,5 +1,7 @@
 package com.mahitotsu.steropes.api;
 
+import java.util.Random;
+
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -11,6 +13,8 @@ import jakarta.annotation.PostConstruct;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 public abstract class AbstractTestBase {
+
+    private Random random = new Random();
 
     @LocalServerPort
     private int port;
@@ -25,5 +29,13 @@ public abstract class AbstractTestBase {
 
     protected RequestSpecification getBaseRequestSpecification() {
         return this.baseRequestSpecification;
+    }
+
+    protected String randomBranchNumber() {
+        return String.format("%03d", this.random.nextInt(1000));
+    }
+
+    protected String randomAccountNumber() {
+        return String.format("%07d", this.random.nextInt(10000000));
     }
 }

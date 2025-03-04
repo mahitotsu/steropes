@@ -36,7 +36,7 @@ public class Account extends EntityBase {
     @Column(name="account_number", nullable = false, insertable = true, updatable = false)
     @NotNull
     @Pattern(regexp = "^[0-9]{7}$")
-    private String accountNubmer;
+    private String accountNumber;
 
     @Column(name = "max_balance", nullable = false)
     @NotNull

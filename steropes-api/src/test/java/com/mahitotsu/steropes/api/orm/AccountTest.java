@@ -1,9 +1,11 @@
 package com.mahitotsu.steropes.api.orm;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigDecimal;
-import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -17,18 +19,8 @@ import jakarta.validation.ConstraintViolationException;
 
 public class AccountTest extends AbstractTestBase {
 
-    private Random random = new Random();
-
     @Autowired
     private AccountDAO accountRepository;
-
-    private String randomBranchNumber() {
-        return String.format("%03d", this.random.nextInt(1000));
-    }
-
-    private String randomAccountNumber() {
-        return String.format("%07d", this.random.nextInt(10000000));
-    }
 
     @Test
     public void testSave() {
@@ -39,7 +31,7 @@ public class AccountTest extends AbstractTestBase {
 
         final Account saved = this.accountRepository.save(new Account(branchNumber, accountNumber, maxBalance));
         assertEquals(branchNumber, saved.getBranchNumber());
-        assertEquals(accountNumber, saved.getAccountNubmer());
+        assertEquals(accountNumber, saved.getAccountNumber());
         assertEquals(maxBalance, saved.getMaxBalance());
         assertNotNull(saved.getId());
     }
@@ -64,6 +56,7 @@ public class AccountTest extends AbstractTestBase {
         final String accountNumber = this.randomAccountNumber();
         final BigDecimal maxBalance = new BigDecimal(1000);
 
+        // branchNumber
         this.assertJpaValidation(
                 () -> this.accountRepository.save(new Account(null, accountNumber, maxBalance)));
         this.assertJpaValidation(
@@ -73,6 +66,7 @@ public class AccountTest extends AbstractTestBase {
         this.assertJpaValidation(
                 () -> this.accountRepository.save(new Account("01a", accountNumber, maxBalance)));
 
+        // accountNumber
         this.assertJpaValidation(
                 () -> this.accountRepository.save(new Account(branchNumber, null, maxBalance)));
         this.assertJpaValidation(
@@ -82,12 +76,18 @@ public class AccountTest extends AbstractTestBase {
         this.assertJpaValidation(
                 () -> this.accountRepository.save(new Account(branchNumber, "012345a", maxBalance)));
 
+        // maxBalance
         this.assertJpaValidation(
                 () -> this.accountRepository.save(new Account(branchNumber, accountNumber, null)));
         this.assertJpaValidation(
-                () -> this.accountRepository.save(new Account(branchNumber, accountNumber, new BigDecimal(-1))));
+                () -> this.accountRepository
+                        .save(new Account(branchNumber, accountNumber, new BigDecimal(-1))));
         this.assertJpaValidation(
                 () -> this.accountRepository
-                        .save(new Account(branchNumber, accountNumber, new BigDecimal("10000000000000"))));
+                        .save(new Account(branchNumber, accountNumber,
+                                new BigDecimal("10000000000000"))));
+        this.assertJpaValidation(
+                () -> this.accountRepository
+                        .save(new Account(branchNumber, accountNumber, new BigDecimal("1.234"))));
     }
 }

@@ -1,5 +1,7 @@
 package com.mahitotsu.steropes.api.infra;
 
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -19,12 +21,23 @@ public class LockConfig {
     @Bean
     public AmazonDynamoDBLockClient amazonDynamoDBLockClient() {
         return new AmazonDynamoDBLockClient(
-                AmazonDynamoDBLockClientOptions.builder(this.dynamoDbClient(), "lockTable")
+                AmazonDynamoDBLockClientOptions.builder(this.dynamoDbClient(), "lock_table")
+                        .withTimeUnit(TimeUnit.SECONDS)
+                        .withLeaseDuration(10L)
+                        .withHeartbeatPeriod(3L)
+                        .withCreateHeartbeatBackgroundThread(true)
                         .build());
     }
 
     @Bean
     public AmazonDynamoDBLockRegistry amazonDynamoDBLockRegistry() {
         return new AmazonDynamoDBLockRegistry(this.amazonDynamoDBLockClient());
+    }
+
+    @Bean
+    public LockTemplate lockTemplate() {
+
+        final LockTemplate lockTemplate = new LockTemplate(this.amazonDynamoDBLockRegistry());
+        return lockTemplate;
     }
 }

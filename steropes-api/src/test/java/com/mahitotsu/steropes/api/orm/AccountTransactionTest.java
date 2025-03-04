@@ -17,18 +17,8 @@ import jakarta.validation.ConstraintViolationException;
 
 public class AccountTransactionTest extends AbstractTestBase {
 
-    private Random random = new Random();
-
     @Autowired
     private AccountTransactionDAO accountTransactionRepository;
-
-    private String randomBranchNumber() {
-        return String.format("%03d", this.random.nextInt(1000));
-    }
-
-    private String randomAccountNumber() {
-        return String.format("%07d", this.random.nextInt(10000000));
-    }
 
     @Test
     public void testSave() {
@@ -72,62 +62,87 @@ public class AccountTransactionTest extends AbstractTestBase {
         final BigDecimal amount = new BigDecimal(10);
         final BigDecimal newBalance = new BigDecimal(1000);
 
+        // branchNumber
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction(null, accountNumber, sequenceNumber, amount, newBalance)));
+                        .save(new AccountTransaction(null, accountNumber, sequenceNumber,
+                                amount, newBalance)));
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction("0123", accountNumber, sequenceNumber, amount, newBalance)));
+                        .save(new AccountTransaction("0123", accountNumber, sequenceNumber,
+                                amount, newBalance)));
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction("01", accountNumber, sequenceNumber, amount, newBalance)));
+                        .save(new AccountTransaction("01", accountNumber, sequenceNumber,
+                                amount, newBalance)));
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction("01a", accountNumber, sequenceNumber, amount, newBalance)));
+                        .save(new AccountTransaction("01a", accountNumber, sequenceNumber,
+                                amount, newBalance)));
 
+        // accountNumber
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction(branchNumber, null, sequenceNumber, amount, newBalance)));
+                        .save(new AccountTransaction(branchNumber, null, sequenceNumber, amount,
+                                newBalance)));
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction(branchNumber, "01234567", sequenceNumber, amount, newBalance)));
+                        .save(new AccountTransaction(branchNumber, "01234567", sequenceNumber,
+                                amount, newBalance)));
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction(branchNumber, "012345", sequenceNumber, amount, newBalance)));
+                        .save(new AccountTransaction(branchNumber, "012345", sequenceNumber,
+                                amount, newBalance)));
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction(branchNumber, "012345a", sequenceNumber, amount, newBalance)));
+                        .save(new AccountTransaction(branchNumber, "012345a", sequenceNumber,
+                                amount, newBalance)));
 
+        // sequenceNumber
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction(branchNumber, accountNumber, null, amount, newBalance)));
+                        .save(new AccountTransaction(branchNumber, accountNumber, null, amount,
+                                newBalance)));
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction(branchNumber, accountNumber, Integer.valueOf(0), amount,
+                        .save(new AccountTransaction(branchNumber, accountNumber,
+                                Integer.valueOf(0), amount,
                                 newBalance)));
 
+        // amount
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction(branchNumber, accountNumber, sequenceNumber, null, newBalance)));
+                        .save(new AccountTransaction(branchNumber, accountNumber,
+                                sequenceNumber, null, newBalance)));
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction(branchNumber, accountNumber, sequenceNumber,
-                                new BigDecimal("-10000000000000"), newBalance)));
+                        .save(new AccountTransaction(branchNumber, accountNumber,
+                                sequenceNumber, new BigDecimal("-10000000000000"), newBalance)));
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction(branchNumber, accountNumber, sequenceNumber,
-                                new BigDecimal("10000000000000"), newBalance)));
+                        .save(new AccountTransaction(branchNumber, accountNumber,
+                                sequenceNumber, new BigDecimal("10000000000000"), newBalance)));
+        this.assertJpaValidation(
+                () -> this.accountTransactionRepository
+                        .save(new AccountTransaction(branchNumber, accountNumber,
+                                sequenceNumber, new BigDecimal("1.234"), newBalance)));
 
+        // newBalance
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction(branchNumber, accountNumber, sequenceNumber, amount, null)));
+                        .save(new AccountTransaction(branchNumber, accountNumber,
+                                sequenceNumber, amount, null)));
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction(branchNumber, accountNumber, sequenceNumber, amount,
-                                new BigDecimal("-10000000000000"))));
+                        .save(new AccountTransaction(branchNumber, accountNumber,
+                                sequenceNumber, amount, new BigDecimal("-10000000000000"))));
         this.assertJpaValidation(
                 () -> this.accountTransactionRepository
-                        .save(new AccountTransaction(branchNumber, accountNumber, sequenceNumber, amount,
-                                new BigDecimal("10000000000000"))));
+                        .save(new AccountTransaction(branchNumber, accountNumber,
+                                sequenceNumber, amount, new BigDecimal("10000000000000"))));
+        this.assertJpaValidation(
+                () -> this.accountTransactionRepository
+                        .save(new AccountTransaction(branchNumber, accountNumber,
+                                sequenceNumber, amount, new BigDecimal("1.234"))));
     }
 }
