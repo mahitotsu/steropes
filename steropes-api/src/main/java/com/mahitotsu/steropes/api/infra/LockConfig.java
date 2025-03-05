@@ -26,8 +26,8 @@ public class LockConfig {
                         .withPartitionKeyName("pKey")
                         .withSortKeyName("sKey")
                         .withTimeUnit(TimeUnit.SECONDS)
-                        .withLeaseDuration(10L)
-                        .withHeartbeatPeriod(3L)
+                        .withLeaseDuration(30L)
+                        .withHeartbeatPeriod(10L)
                         .withCreateHeartbeatBackgroundThread(true)
                         .build());
     }

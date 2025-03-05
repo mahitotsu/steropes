@@ -84,12 +84,6 @@
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>dsql</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>commons-logging</groupId>
-                    <artifactId>commons-logging</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <!-- testing -->
         <dependency>
@@ -164,6 +158,9 @@
                         <SPRING_CLOUD_AWS_CREDENTIALS_PROFILE_NAME>default</SPRING_CLOUD_AWS_CREDENTIALS_PROFILE_NAME>
                         <AWS_REGION>us-east-1</AWS_REGION>
                     </environmentVariables>
+                    <classpathDependencyExcludes>
+                        <classpathDependencyExclude>commons-logging:commons-logging</classpathDependencyExclude>
+                    </classpathDependencyExcludes>
                 </configuration>
             </plugin>
         </plugins>

@@ -1,6 +1,8 @@
 package com.mahitotsu.steropes.api.model;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -53,7 +55,7 @@ public class AccountRepositoryTest extends AbstractTestBase {
             try {
                 return f.get();
             } catch (InterruptedException | ExecutionException e) {
-                return null;
+                throw new RuntimeException("Error occurred while processing task.", e);
             }
         }).filter(i -> i != null).collect(Collectors.toList());
 
@@ -76,11 +78,36 @@ public class AccountRepositoryTest extends AbstractTestBase {
             try {
                 return f.get();
             } catch (InterruptedException | ExecutionException e) {
-                return null;
+                throw new RuntimeException("Error occurred while processing task.", e);
             }
         }).filter(i -> i != null).collect(Collectors.toList());
 
         assertEquals(tasks.size(), accounts.size());
         assertEquals(tasks.size(), accounts.stream().map(a -> a.getAccountNumber()).distinct().count());
+    }
+
+    @Test
+    public void testGetAccount_Exists() {
+
+        final String branchNumber = this.randomBranchNumber();
+        final BigDecimal maxBalance = new BigDecimal("1000.00");
+
+        final Account openedAccount = this.accountRepository.openAccount(branchNumber, maxBalance);
+        final Account retrievedAccount = this.accountRepository.getAccount(openedAccount.getBranchNumber(),
+                openedAccount.getAccountNumber());
+
+        assertNotNull(retrievedAccount);
+        assertEquals(openedAccount, retrievedAccount);
+    }
+
+    @Test
+    public void testGetAccount_NotExists() {
+
+        final String branchNumber = this.randomBranchNumber();
+        final String accountNumber = "0000000";
+
+        final Account retrievedAccount = this.accountRepository.getAccount(branchNumber, accountNumber);
+
+        assertNull(retrievedAccount);
     }
 }
