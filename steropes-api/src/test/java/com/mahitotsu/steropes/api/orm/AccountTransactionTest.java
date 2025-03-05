@@ -3,7 +3,6 @@ package com.mahitotsu.steropes.api.orm;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.math.BigDecimal;
-import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -33,7 +32,7 @@ public class AccountTransactionTest extends AbstractTestBase {
                 .save(new AccountTransaction(branchNumber, accountNumber, sequenceNumber, amount,
                         newBalance));
         assertEquals(branchNumber, saved.getBranchNumber());
-        assertEquals(accountNumber, saved.getAccountNubmer());
+        assertEquals(accountNumber, saved.getAccountNumber());
         assertEquals(sequenceNumber, saved.getSequenceNumber());
         assertEquals(amount, saved.getAmount());
         assertEquals(newBalance, saved.getNewBalance());

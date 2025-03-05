@@ -5,6 +5,10 @@ import java.util.Random;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+
+import com.mahitotsu.steropes.api.infra.TestEnvConfig;
 
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
@@ -12,6 +16,8 @@ import io.restassured.specification.RequestSpecification;
 import jakarta.annotation.PostConstruct;
 
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+@Import({ TestEnvConfig.class })
+@ActiveProfiles({ "ut" })
 public abstract class AbstractTestBase {
 
     private Random random = new Random();

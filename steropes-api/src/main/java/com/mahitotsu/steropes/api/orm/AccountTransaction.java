@@ -37,7 +37,7 @@ public class AccountTransaction extends EntityBase {
     @Column(name="account_number", nullable = false, insertable = true, updatable = false)
     @NotNull
     @Pattern(regexp = "^[0-9]{7}$")
-    private String accountNubmer;
+    private String accountNumber;
 
     @Column(name="sequence_number", nullable = false, insertable = true, updatable = false)
     @NotNull

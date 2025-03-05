@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBLockClient;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBLockClientOptions;
@@ -38,7 +39,7 @@ public class LockConfig {
     }
 
     @Bean
-    public LockTemplate lockTemplate() {
+    public LockTemplate lockTemplate(final PlatformTransactionManager transactionManager) {
 
         final LockTemplate lockTemplate = new LockTemplate(this.amazonDynamoDBLockRegistry());
         lockTemplate.setLockTimeout(Duration.ofSeconds(10L));
