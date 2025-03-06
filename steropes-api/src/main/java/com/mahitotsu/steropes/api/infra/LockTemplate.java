@@ -29,7 +29,7 @@ public class LockTemplate {
         this.lockTimeout = lockTimeout;
     }
 
-    public <T> T doWithLock(final String lockKey, final Execution<? extends T> task) throws RuntimeException{
+    public <T> T doWithLock(final LockKey lockKey, final Execution<? extends T> task) throws RuntimeException{
 
         final long lockId = System.currentTimeMillis();
         log.debug("STARTED lock={}.{}", lockKey, lockId);

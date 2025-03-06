@@ -1,5 +1,6 @@
 package com.mahitotsu.steropes.api.infra;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -30,9 +31,9 @@ public class AmazonDynamoDBLockRegistry implements LockRegistry {
 
             this.lockClient = lockClient;
 
-            final String[] lockKeys = String.class.cast(lockKey).split("\\.");
-            this.lockKey = lockKeys[0];
-            this.scope = lockKeys.length > 1 ? lockKeys[1] : "_";
+            final LockKey lKey = LockKey.class.cast(lockKey);
+            this.lockKey = lKey.getKey();
+            this.scope = Optional.ofNullable(lKey.getScope()).orElse("_");
 
             this.currentLock = null;
         }

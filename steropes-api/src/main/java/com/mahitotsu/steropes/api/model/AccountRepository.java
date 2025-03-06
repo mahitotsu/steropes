@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionOperations;
 
+import com.mahitotsu.steropes.api.infra.LockKeys;
 import com.mahitotsu.steropes.api.infra.LockTemplate;
 import com.mahitotsu.steropes.api.orm.Account;
 import com.mahitotsu.steropes.api.orm.AccountDAO;
@@ -19,7 +20,7 @@ import com.mahitotsu.steropes.api.orm.AccountTransactionDAO;
 
 @Repository
 @Retryable(retryFor = {
-        CannotAcquireLockException.class }, maxAttempts = 3, backoff = @Backoff(delay = 300, maxDelay = 3000, multiplier = 1.5, random = true))
+        CannotAcquireLockException.class }, maxAttempts = 3, backoff = @Backoff(delay = 300, maxDelay = 5000, multiplier = 1.5, random = true))
 public class AccountRepository {
 
     @Autowired
@@ -36,7 +37,7 @@ public class AccountRepository {
 
     public Account openAccount(final String branchNumber, final BigDecimal maxBalance) {
 
-        return this.lockTemplate.doWithLock("OPEN_ACCOUNT." + branchNumber,
+        return this.lockTemplate.doWithLock(LockKeys.forBranch(branchNumber),
                 () -> this.txOps.execute(tx -> this._openAccount(branchNumber, maxBalance)));
     }
 
@@ -50,7 +51,7 @@ public class AccountRepository {
 
         final String branchNumber = account.getBranchNumber();
         final String accountNumber = account.getAccountNumber();
-        return this.lockTemplate.doWithLock("DEPOSIT." + branchNumber + accountNumber,
+        return this.lockTemplate.doWithLock(LockKeys.forAccount(branchNumber, accountNumber),
                 () -> this.txOps
                         .execute(tx -> this._deposit(branchNumber, accountNumber, amount, account.getMaxBalance())));
     }
@@ -62,7 +63,8 @@ public class AccountRepository {
         final String accountNumber = account.getAccountNumber();
 
         final AccountTransaction lastTx = this.accountTransactionDAO
-                .findFirstByBranchNumberAndAccountNumberOrderBySequenceNumberDesc(branchNumber, accountNumber)
+                .findFirstByBranchNumberAndAccountNumberOrderBySequenceNumberDesc(branchNumber,
+                        accountNumber)
                 .orElse(null);
         return lastTx == null ? new BigDecimal("0.00") : lastTx.getNewBalance();
     }
@@ -74,7 +76,8 @@ public class AccountRepository {
         final String accountNumber = account.getAccountNumber();
 
         return this.accountTransactionDAO
-                .findByBranchNumberAndAccountNumberOrderBySequenceNumberDesc(branchNumber, accountNumber)
+                .findByBranchNumberAndAccountNumberOrderBySequenceNumberDesc(branchNumber,
+                        accountNumber)
                 .collect(Collectors.toList());
     }
 
@@ -94,12 +97,14 @@ public class AccountRepository {
             final BigDecimal maxBalance) {
 
         final AccountTransaction lastTx = this.accountTransactionDAO
-                .findFirstByBranchNumberAndAccountNumberOrderBySequenceNumberDesc(branchNumber, accountNumber)
+                .findFirstByBranchNumberAndAccountNumberOrderBySequenceNumberDesc(branchNumber,
+                        accountNumber)
                 .orElse(null);
         final BigDecimal oldBalance = lastTx == null ? new BigDecimal("0.00") : lastTx.getNewBalance();
         final BigDecimal newBalance = oldBalance.add(amount);
         if (newBalance.compareTo(maxBalance) > 0) {
-            throw new IllegalArgumentException("The deposit is rejected due to exceeding the maximum balance.");
+            throw new IllegalArgumentException(
+                    "The deposit is rejected due to exceeding the maximum balance.");
         }
 
         final AccountTransaction nextTx = new AccountTransaction(branchNumber, accountNumber,
