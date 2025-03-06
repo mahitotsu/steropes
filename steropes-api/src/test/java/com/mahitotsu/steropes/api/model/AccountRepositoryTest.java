@@ -1,11 +1,6 @@
 package com.mahitotsu.steropes.api.model;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -173,7 +168,8 @@ public class AccountRepositoryTest extends AbstractTestBase {
 
         BigDecimal balance = this.accountRepository.getLastBalance(account);
         int index = tasks.size();
-        final Iterator<AccountTransaction> transactions = this.accountRepository.getAccountTransactions(account).iterator();
+        final Iterator<AccountTransaction> transactions = this.accountRepository.getAccountTransactions(account)
+                .iterator();
         while (transactions.hasNext()) {
             final AccountTransaction tx = transactions.next();
             assertEquals(index, tx.getSequenceNumber().intValue());
@@ -201,7 +197,8 @@ public class AccountRepositoryTest extends AbstractTestBase {
 
         BigDecimal balance = this.accountRepository.getLastBalance(account);
         int index = tasks.size();
-        final Iterator<AccountTransaction> transactions = this.accountRepository.getAccountTransactions(account).iterator();
+        final Iterator<AccountTransaction> transactions = this.accountRepository.getAccountTransactions(account)
+                .iterator();
         while (transactions.hasNext()) {
             final AccountTransaction tx = transactions.next();
             assertEquals(index, tx.getSequenceNumber().intValue());
@@ -210,5 +207,105 @@ public class AccountRepositoryTest extends AbstractTestBase {
             balance = balance.subtract(tx.getAmount());
         }
         assertEquals(new BigDecimal("0.00"), balance);
+    }
+
+    @Test
+    public void testWithdraw_Single() {
+
+        final String branchNumber = this.randomBranchNumber();
+        final BigDecimal maxBalance = new BigDecimal("1000.00");
+
+        final Account account = this.accountRepository.openAccount(branchNumber, maxBalance);
+        this.accountRepository.deposit(account, new BigDecimal("500.00"));
+
+        final BigDecimal amount = new BigDecimal("100.00");
+        final BigDecimal newBalance = this.accountRepository.withdraw(account, amount);
+        assertNotNull(newBalance);
+        assertEquals(newBalance, this.accountRepository.getLastBalance(account));
+
+        final Iterator<AccountTransaction> i = this.accountRepository.getAccountTransactions(account).iterator();
+        assertTrue(i.hasNext());
+
+        final AccountTransaction lastTx = i.next();
+        assertEquals(account.getBranchNumber(), lastTx.getBranchNumber());
+        assertEquals(account.getAccountNumber(), lastTx.getAccountNumber());
+        assertEquals(2, lastTx.getSequenceNumber());
+        assertEquals(amount, lastTx.getAmount());
+        assertEquals(newBalance, lastTx.getNewBalance());
+
+        i.next(); // consumer first deposit
+        assertFalse(i.hasNext());
+    }
+
+    @Test
+    public void testWithdraw_Single_FallingBelowMinBalance() {
+
+        final String branchNumber = this.randomBranchNumber();
+        final BigDecimal maxBalance = new BigDecimal("1000.00");
+
+        final Account account = this.accountRepository.openAccount(branchNumber, maxBalance);
+        this.accountRepository.deposit(account, new BigDecimal("100.00"));
+        assertThrows(InvalidDataAccessApiUsageException.class,
+                () -> this.accountRepository.deposit(account, maxBalance.add(new BigDecimal("200.00"))));
+    }
+
+    @Test
+    public void testWithdraw_Multi_Serial() throws InterruptedException {
+
+        final String branchNumber = this.randomBranchNumber();
+        final BigDecimal maxBalance = new BigDecimal("1000.00");
+
+        final Account account = this.accountRepository.openAccount(branchNumber, maxBalance);
+        this.accountRepository.deposit(account, maxBalance);
+        final Collection<Callable<BigDecimal>> tasks = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            final int amount = (i + 1) * 10;
+            tasks.add(() -> this.accountRepository.withdraw(account, new BigDecimal(String.valueOf(amount) + ".00")));
+        }
+
+        Executors.newFixedThreadPool(1).invokeAll(tasks);
+
+        BigDecimal balance = this.accountRepository.getLastBalance(account);
+        int index = tasks.size();
+        final Iterator<AccountTransaction> transactions = this.accountRepository.getAccountTransactions(account)
+                .iterator();
+        while (transactions.hasNext() && index > 0) {
+            final AccountTransaction tx = transactions.next();
+            assertEquals(index + 1, tx.getSequenceNumber().intValue());
+            assertEquals(balance, tx.getNewBalance());
+            index--;
+            balance = balance.add(tx.getAmount());
+        }
+        assertEquals(maxBalance, balance);
+    }
+
+    @Test
+    public void testWithdraw_Multi_Parallel() throws InterruptedException {
+
+        final String branchNumber = this.randomBranchNumber();
+        final BigDecimal maxBalance = new BigDecimal("1000.00");
+
+        final Account account = this.accountRepository.openAccount(branchNumber, maxBalance);
+        this.accountRepository.deposit(account, maxBalance);
+        final Collection<Callable<BigDecimal>> tasks = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            final int amount = (i + 1) * 10;
+            tasks.add(() -> this.accountRepository.withdraw(account, new BigDecimal(String.valueOf(amount) + ".00")));
+        }
+
+        Executors.newFixedThreadPool(3).invokeAll(tasks);
+
+        BigDecimal balance = this.accountRepository.getLastBalance(account);
+        int index = tasks.size();
+        final Iterator<AccountTransaction> transactions = this.accountRepository.getAccountTransactions(account)
+                .iterator();
+        while (transactions.hasNext() && index > 0) {
+            final AccountTransaction tx = transactions.next();
+            assertEquals(index + 1, tx.getSequenceNumber().intValue());
+            assertEquals(balance, tx.getNewBalance());
+            index--;
+            balance = balance.add(tx.getAmount());
+        }
+        assertEquals(maxBalance, balance);
     }
 }

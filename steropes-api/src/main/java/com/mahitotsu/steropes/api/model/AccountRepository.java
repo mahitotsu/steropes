@@ -4,11 +4,11 @@ import java.math.BigDecimal;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionOperations;
 
 import com.mahitotsu.steropes.api.infra.LockKeys;
@@ -20,7 +20,7 @@ import com.mahitotsu.steropes.api.orm.AccountTransactionDAO;
 
 @Repository
 @Retryable(retryFor = {
-        CannotAcquireLockException.class }, maxAttempts = 3, backoff = @Backoff(delay = 300, maxDelay = 5000, multiplier = 1.5, random = true))
+        CannotAcquireLockException.class }, maxAttempts = 3, backoff = @Backoff(delay = 300, maxDelay = 3000, multiplier = 1.5, random = true))
 public class AccountRepository {
 
     @Autowired
@@ -33,18 +33,23 @@ public class AccountRepository {
     private LockTemplate lockTemplate;
 
     @Autowired
-    private TransactionOperations txOps;
+    @Qualifier("rw")
+    private TransactionOperations rwTxOp;
+
+    @Autowired
+    @Qualifier("ro")
+    private TransactionOperations roTxOp;
 
     public Account openAccount(final String branchNumber, final BigDecimal maxBalance) {
 
         return this.lockTemplate.doWithLock(LockKeys.forBranch(branchNumber),
-                () -> this.txOps.execute(tx -> this._openAccount(branchNumber, maxBalance)));
+                () -> this.rwTxOp.execute(tx -> this._openAccount(branchNumber, maxBalance)));
     }
 
-    @Transactional(readOnly = true)
     public Account getAccount(final String branchNumber, final String accountNumber) {
 
-        return this.accountDAO.findByBranchNumberAndAccountNumber(branchNumber, accountNumber).orElse(null);
+        return this.roTxOp.execute(
+                tx -> this.accountDAO.findByBranchNumberAndAccountNumber(branchNumber, accountNumber).orElse(null));
     }
 
     public BigDecimal deposit(final Account account, final BigDecimal amount) {
@@ -52,33 +57,42 @@ public class AccountRepository {
         final String branchNumber = account.getBranchNumber();
         final String accountNumber = account.getAccountNumber();
         return this.lockTemplate.doWithLock(LockKeys.forAccount(branchNumber, accountNumber),
-                () -> this.txOps
-                        .execute(tx -> this._deposit(branchNumber, accountNumber, amount, account.getMaxBalance())));
+                () -> this.rwTxOp
+                        .execute(tx -> this._deposit(branchNumber, accountNumber, amount,
+                                account.getMaxBalance())));
     }
 
-    @Transactional(readOnly = true)
+    public BigDecimal withdraw(final Account account, final BigDecimal amount) {
+
+        final String branchNumber = account.getBranchNumber();
+        final String accountNumber = account.getAccountNumber();
+        return this.lockTemplate.doWithLock(LockKeys.forAccount(branchNumber, accountNumber),
+                () -> this.rwTxOp
+                        .execute(tx -> this._withdraw(branchNumber, accountNumber, amount,
+                                new BigDecimal("0.00"))));
+    }
+
     public BigDecimal getLastBalance(final Account account) {
 
         final String branchNumber = account.getBranchNumber();
         final String accountNumber = account.getAccountNumber();
 
-        final AccountTransaction lastTx = this.accountTransactionDAO
+        final AccountTransaction lastTx = this.roTxOp.execute((tx) -> this.accountTransactionDAO
                 .findFirstByBranchNumberAndAccountNumberOrderBySequenceNumberDesc(branchNumber,
                         accountNumber)
-                .orElse(null);
+                .orElse(null));
         return lastTx == null ? new BigDecimal("0.00") : lastTx.getNewBalance();
     }
 
-    @Transactional(readOnly = true)
     public Iterable<AccountTransaction> getAccountTransactions(final Account account) {
 
         final String branchNumber = account.getBranchNumber();
         final String accountNumber = account.getAccountNumber();
 
-        return this.accountTransactionDAO
+        return this.roTxOp.execute(tx -> this.accountTransactionDAO
                 .findByBranchNumberAndAccountNumberOrderBySequenceNumberDesc(branchNumber,
                         accountNumber)
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
     }
 
     private Account _openAccount(final String branchNumber, final BigDecimal maxBalance) {
@@ -105,6 +119,26 @@ public class AccountRepository {
         if (newBalance.compareTo(maxBalance) > 0) {
             throw new IllegalArgumentException(
                     "The deposit is rejected due to exceeding the maximum balance.");
+        }
+
+        final AccountTransaction nextTx = new AccountTransaction(branchNumber, accountNumber,
+                (lastTx == null ? 0 : lastTx.getSequenceNumber()) + 1, amount, newBalance);
+        this.accountTransactionDAO.save(nextTx);
+        return newBalance;
+    }
+
+    private BigDecimal _withdraw(final String branchNumber, final String accountNumber, final BigDecimal amount,
+            final BigDecimal minBalance) {
+
+        final AccountTransaction lastTx = this.accountTransactionDAO
+                .findFirstByBranchNumberAndAccountNumberOrderBySequenceNumberDesc(branchNumber,
+                        accountNumber)
+                .orElse(null);
+        final BigDecimal oldBalance = lastTx == null ? new BigDecimal("0.00") : lastTx.getNewBalance();
+        final BigDecimal newBalance = oldBalance.subtract(amount);
+        if (newBalance.compareTo(minBalance) < 0) {
+            throw new IllegalArgumentException(
+                    "The withdrawal is rejected due to falling below the minimum balance.");
         }
 
         final AccountTransaction nextTx = new AccountTransaction(branchNumber, accountNumber,

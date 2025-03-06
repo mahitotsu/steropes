@@ -1,5 +1,6 @@
 package com.mahitotsu.steropes.api.infra;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -10,10 +11,20 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class TransactionConfig {
 
     @Bean
-    public TransactionOperations transactionOperations(final PlatformTransactionManager transactionManager) {
+    @Qualifier("rw")
+    public TransactionOperations readWriteTxTemplate(final PlatformTransactionManager transactionManager) {
 
         final TransactionTemplate rwTx = new TransactionTemplate(transactionManager);
         rwTx.setReadOnly(false);
+        return rwTx;
+    }
+
+    @Bean
+    @Qualifier("ro")
+    public TransactionOperations readOnlyTxTemplate(final PlatformTransactionManager transactionManager) {
+
+        final TransactionTemplate rwTx = new TransactionTemplate(transactionManager);
+        rwTx.setReadOnly(true);
         return rwTx;
     }
 }

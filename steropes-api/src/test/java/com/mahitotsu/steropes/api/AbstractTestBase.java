@@ -7,8 +7,11 @@ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.TestExecutionListeners;
+import org.springframework.test.context.TestExecutionListeners.MergeMode;
 
 import com.mahitotsu.steropes.api.infra.TestEnvConfig;
+import com.mahitotsu.steropes.api.infra.TestExecutionLogger;
 
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
@@ -18,6 +21,7 @@ import jakarta.annotation.PostConstruct;
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @Import({ TestEnvConfig.class })
 @ActiveProfiles({ "ut" })
+@TestExecutionListeners(listeners = { TestExecutionLogger.class }, mergeMode = MergeMode.MERGE_WITH_DEFAULTS)
 public abstract class AbstractTestBase {
 
     private Random random = new Random();
