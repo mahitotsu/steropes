@@ -11,6 +11,7 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.support.TransactionOperations;
 
+import com.mahitotsu.steropes.api.infra.LockKey;
 import com.mahitotsu.steropes.api.infra.LockKeys;
 import com.mahitotsu.steropes.api.infra.LockTemplate;
 import com.mahitotsu.steropes.api.orm.Account;
@@ -49,7 +50,8 @@ public class AccountRepository {
     public Account getAccount(final String branchNumber, final String accountNumber) {
 
         return this.roTxOp.execute(
-                tx -> this.accountDAO.findByBranchNumberAndAccountNumber(branchNumber, accountNumber).orElse(null));
+                tx -> this.accountDAO.findByBranchNumberAndAccountNumber(branchNumber, accountNumber)
+                        .orElse(null));
     }
 
     public BigDecimal deposit(final Account account, final BigDecimal amount) {
@@ -93,6 +95,19 @@ public class AccountRepository {
                 .findByBranchNumberAndAccountNumberOrderBySequenceNumberDesc(branchNumber,
                         accountNumber)
                 .collect(Collectors.toList()));
+    }
+
+    public boolean transfer(final Account senderAccount, final Account recipientAccount, final BigDecimal amount) {
+
+        final LockKey sLock = LockKeys.forAccount(senderAccount.getBranchNumber(), senderAccount.getAccountNumber());
+        final LockKey rLock = LockKeys.forAccount(recipientAccount.getBranchNumber(),
+                recipientAccount.getAccountNumber());
+
+        return this.lockTemplate.doWithLock(LockKeys.sort(new LockKey[] { sLock, rLock }), () -> this.rwTxOp.execute(tx -> {
+            this.withdraw(senderAccount, amount);
+            this.deposit(recipientAccount, amount);
+            return true;
+        }));
     }
 
     private Account _openAccount(final String branchNumber, final BigDecimal maxBalance) {

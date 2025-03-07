@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.SortedSet;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
@@ -40,7 +41,7 @@ public class LockTemplate {
     public <T> T doWithLock(final SortedSet<LockKey> lockKeySet, final Execution<? extends T> task)
             throws RuntimeException {
 
-        final long lockId = System.currentTimeMillis();
+        final String lockId = UUID.randomUUID().toString();
         log.debug("STARTED lock={}.{}", lockKeySet, lockId);
 
         final List<Lock> locks = lockKeySet.stream().map(l -> this.lockRegistry.obtain(l)).collect(Collectors.toList());

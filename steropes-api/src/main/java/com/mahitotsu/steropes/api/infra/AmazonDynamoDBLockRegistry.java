@@ -52,6 +52,7 @@ public class AmazonDynamoDBLockRegistry implements LockRegistry {
             if (this.scope != null) {
                 builder.withSortKey(this.scope);
             }
+            builder.withReentrant(true);
             return builder;
         }
 

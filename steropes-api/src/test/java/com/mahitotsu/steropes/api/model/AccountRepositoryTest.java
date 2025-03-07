@@ -308,4 +308,47 @@ public class AccountRepositoryTest extends AbstractTestBase {
         }
         assertEquals(maxBalance, balance);
     }
+
+    @Test
+    public void testTransfer_Single() {
+
+        final String branchNumber = this.randomBranchNumber();
+        final BigDecimal maxBalance = new BigDecimal("1000.0");
+
+        final Account senderAccount = this.accountRepository.openAccount(branchNumber, maxBalance);
+        final Account recipientAccount = this.accountRepository.openAccount(branchNumber, maxBalance);
+
+        this.accountRepository.deposit(senderAccount, new BigDecimal("500.00"));
+        this.accountRepository.deposit(recipientAccount, new BigDecimal("600.00"));
+        assertEquals(new BigDecimal("500.00"), this.accountRepository.getLastBalance(senderAccount));
+        assertEquals(new BigDecimal("600.00"), this.accountRepository.getLastBalance(recipientAccount));
+
+        this.accountRepository.transfer(senderAccount, recipientAccount, new BigDecimal("200.00"));
+        assertEquals(new BigDecimal("300.00"), this.accountRepository.getLastBalance(senderAccount));
+        assertEquals(new BigDecimal("800.00"), this.accountRepository.getLastBalance(recipientAccount));
+    }
+
+    @Test
+    public void testTransfer_Multi_Serial() {
+
+        final String b1 = this.randomBranchNumber();
+        final String b2 = this.randomBranchNumber();
+        final BigDecimal maxBalance = new BigDecimal("1000.0");
+
+        final Account a1 = this.accountRepository.openAccount(b1, maxBalance);
+        final Account a2 = this.accountRepository.openAccount(b2, maxBalance);
+        this.accountRepository.deposit(a1, new BigDecimal("500.00"));
+        this.accountRepository.deposit(a2, new BigDecimal("600.00"));
+
+        final Collection<Callable<Boolean>> tasks = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            final int index = i;
+            final int amount = (i + 1) * 10;
+            tasks.add(() -> this.accountRepository.transfer(
+                    index % 2 == 0 ? a1 : a2,
+                    index % 2 == 0 ? a2 : a1,
+                    new BigDecimal(String.valueOf(amount) + ".00")));
+        }
+
+    }
 }
