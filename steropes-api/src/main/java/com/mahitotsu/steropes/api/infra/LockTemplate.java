@@ -55,21 +55,23 @@ public class LockTemplate {
                 if (t >= 0) {
                     if (i.next().tryLock(t, TimeUnit.MILLISECONDS) == false) {
                         i.previous();
-                        break;
+                        while (i.hasPrevious()) {
+                            i.previous().unlock();
+                        }
+                        throw new RuntimeException("Failed to acquire lock for key: " + lockKeySet);
                     }
                 } else {
-                    break;
+                    while (i.hasPrevious()) {
+                        i.previous().unlock();
+                    }
+                    throw new RuntimeException("Failed to acquire lock for key: " + lockKeySet);
                 }
             }
-            log.debug("ACQUIRED lock={}.{}", locks, lockId);
         } catch (InterruptedException e) {
             throw new RuntimeException("Thread was interrupted while attempting to acquire lock for key: " + lockKeySet,
                     e);
         }
-
-        if (i.hasNext()) {
-            throw new RuntimeException("Failed to acquire lock for key: " + lockKeySet);
-        }
+        log.debug("ACQUIRED lock={}.{}", lockKeySet, lockId);
 
         try {
             return task.execute();
@@ -79,8 +81,8 @@ public class LockTemplate {
         } finally {
             while (i.hasPrevious()) {
                 i.previous().unlock();
-                log.debug("RELEASED lock={}.{}", lockKeySet, lockId);
             }
+            log.debug("RELEASED lock={}.{}", lockKeySet, lockId);
         }
     }
 }

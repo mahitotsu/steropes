@@ -1,0 +1,3 @@
+logging:
+  level:
+    '[com.mahitotsu.steropes.api.infra]': DEBUG

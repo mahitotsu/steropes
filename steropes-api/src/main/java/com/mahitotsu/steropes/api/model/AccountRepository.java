@@ -99,15 +99,17 @@ public class AccountRepository {
 
     public boolean transfer(final Account senderAccount, final Account recipientAccount, final BigDecimal amount) {
 
-        final LockKey sLock = LockKeys.forAccount(senderAccount.getBranchNumber(), senderAccount.getAccountNumber());
+        final LockKey sLock = LockKeys.forAccount(senderAccount.getBranchNumber(),
+                senderAccount.getAccountNumber());
         final LockKey rLock = LockKeys.forAccount(recipientAccount.getBranchNumber(),
                 recipientAccount.getAccountNumber());
 
-        return this.lockTemplate.doWithLock(LockKeys.sort(new LockKey[] { sLock, rLock }), () -> this.rwTxOp.execute(tx -> {
-            this.withdraw(senderAccount, amount);
-            this.deposit(recipientAccount, amount);
-            return true;
-        }));
+        return this.lockTemplate.doWithLock(LockKeys.sort(new LockKey[] { sLock, rLock }),
+                () -> this.rwTxOp.execute(tx -> {
+                    this.withdraw(senderAccount, amount);
+                    this.deposit(recipientAccount, amount);
+                    return true;
+                }));
     }
 
     private Account _openAccount(final String branchNumber, final BigDecimal maxBalance) {

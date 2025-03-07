@@ -42,7 +42,7 @@ public class LockConfig {
     public LockTemplate lockTemplate(final PlatformTransactionManager transactionManager) {
 
         final LockTemplate lockTemplate = new LockTemplate(this.amazonDynamoDBLockRegistry());
-        lockTemplate.setLockTimeout(Duration.ofSeconds(10L));
+        lockTemplate.setLockTimeout(Duration.ofSeconds(30L));
         return lockTemplate;
     }
 }
