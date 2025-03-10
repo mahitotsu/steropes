@@ -1,5 +1,7 @@
 package com.mahitotsu.steropes.api.infra;
 
+import java.net.Inet4Address;
+import java.net.UnknownHostException;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -21,10 +23,20 @@ public class LockConfig {
 
     private String buildLockOnwerName() {
 
-        final String prefix = UUID.randomUUID().toString();
+        final String hostname = hostname();
         final long pid = ProcessHandle.current().pid();
         final long threadId = Thread.currentThread().threadId();
-        return String.format("%s-%016x-%016X", prefix, pid, threadId);
+        return String.format("%s-%016x-%016X", hostname, pid, threadId);
+    }
+
+    private String hostname() {
+
+        try {
+            return Inet4Address.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            final String hostname = System.getenv("HOSTNAME");
+            return hostname != null ? hostname : UUID.randomUUID().toString();
+        }
     }
 
     @Bean
