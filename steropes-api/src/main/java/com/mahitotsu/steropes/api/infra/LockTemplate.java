@@ -24,6 +24,8 @@ import lombok.Setter;
 @Component
 public class LockTemplate {
 
+    private static final ThreadLocal<AmazonDynamoDBLockClient> lockClientHolder = new ThreadLocal<>();
+
     @Data
     @Getter
     @Setter(AccessLevel.NONE)
@@ -36,13 +38,25 @@ public class LockTemplate {
     @Autowired
     private BeanFactory beanFactory;
 
+    private AmazonDynamoDBLockClient getLockClient() {
+
+        final AmazonDynamoDBLockClient hold = lockClientHolder.get();
+        if (hold != null) {
+            return hold;
+        }
+        final AmazonDynamoDBLockClient newClient = this.beanFactory.getBean(
+                AmazonDynamoDBLockClient.class);
+        lockClientHolder.set(newClient);
+        return newClient;
+    }
+
     public <T> T execute(final LockRequest request, final Supplier<? extends T> action) {
         return this.execute(request, (_) -> action.get());
     }
 
     public <T> T execute(final LockRequest request, final Function<LockItem, T> action) {
 
-        final AmazonDynamoDBLockClient lockClient = this.beanFactory.getBean(AmazonDynamoDBLockClient.class);
+        final AmazonDynamoDBLockClient lockClient = this.getLockClient();
         LockItem lockItem = null;
         boolean requireNewLock = true;
 
@@ -69,6 +83,7 @@ public class LockTemplate {
         } finally {
             if (lockItem != null && requireNewLock) {
                 lockClient.releaseLock(lockItem);
+                lockClientHolder.remove();
             }
         }
     }
