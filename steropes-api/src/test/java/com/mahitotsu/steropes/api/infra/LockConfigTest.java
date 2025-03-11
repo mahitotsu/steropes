@@ -1,11 +1,14 @@
 package com.mahitotsu.steropes.api.infra;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.BeansException;
@@ -20,115 +23,146 @@ import com.mahitotsu.steropes.api.TestMain;
 
 public class LockConfigTest extends TestMain {
 
+    private static class LockOwnerNameHolder implements Runnable {
+
+        private LockOwnerNameHolder(final BeanFactory beanFactory) {
+            this.beanFactory = beanFactory;
+        }
+
+        private BeanFactory beanFactory;
+
+        private LockItem lockItem;
+
+        private String ownerName;
+
+        @Override
+        public void run() {
+
+            final AmazonDynamoDBLockClient lockClient = this.beanFactory.getBean(AmazonDynamoDBLockClient.class);
+            try {
+                this.lockItem = lockClient.tryAcquireLock(AcquireLockOptions
+                        .builder(UUID.randomUUID().toString()).withSortKey(UUID.randomUUID().toString()).build())
+                        .orElse(null);
+                if (this.lockItem != null) {
+                    this.ownerName = this.lockItem.getOwnerName();
+                }
+            } catch (InterruptedException e) {
+                this.lockItem = null;
+            } finally {
+                if (this.lockItem != null) {
+                    lockClient.releaseLock(this.lockItem);
+                }
+            }
+        }
+
+        public String getOwnerName() {
+            return this.ownerName;
+        }
+    }
+
     @Autowired
     private BeanFactory beanFactory;
 
     @Test
-    public void testLockClient_SameThreads() throws InterruptedException {
+    public void testLockOwnerName_SameThreads() throws InterruptedException {
 
-        final AtomicReference<AmazonDynamoDBLockClient> ref1 = new AtomicReference<>();
-        final AtomicReference<AmazonDynamoDBLockClient> ref2 = new AtomicReference<>();
-
+        final LockOwnerNameHolder l1 = new LockOwnerNameHolder(this.beanFactory);
+        final LockOwnerNameHolder l2 = new LockOwnerNameHolder(this.beanFactory);
         final Thread t1 = new Thread(() -> {
-            ref1.getAndSet(this.beanFactory.getBean(AmazonDynamoDBLockClient.class));
-            ref2.getAndSet(this.beanFactory.getBean(AmazonDynamoDBLockClient.class));
+            l1.run();
+            l2.run();
         });
         t1.start();
         t1.join();
 
-        final AmazonDynamoDBLockClient lockClient1 = ref1.get();
-        final AmazonDynamoDBLockClient lockClient2 = ref2.get();
-
-        assertNotNull(lockClient1);
-        assertNotNull(lockClient2);
-        assertSame(lockClient1, lockClient2);
+        final String on1 = l1.getOwnerName();
+        final String on2 = l2.getOwnerName();
+        assertNotNull(on1);
+        assertNotNull(on2);
+        assertEquals(on1, on2);
     }
 
     @Test
-    public void testLockClient_DifferentThreads() throws InterruptedException {
+    public void testLockOwnerName_DifferentThreads() throws InterruptedException {
 
-        final AtomicReference<AmazonDynamoDBLockClient> ref1 = new AtomicReference<>();
-        final AtomicReference<AmazonDynamoDBLockClient> ref2 = new AtomicReference<>();
+        final LockOwnerNameHolder l1 = new LockOwnerNameHolder(this.beanFactory);
+        final LockOwnerNameHolder l2 = new LockOwnerNameHolder(this.beanFactory);
 
-        final Thread t1 = new Thread(() -> ref1.getAndSet(this.beanFactory.getBean(AmazonDynamoDBLockClient.class)));
-        final Thread t2 = new Thread(() -> ref2.getAndSet(this.beanFactory.getBean(AmazonDynamoDBLockClient.class)));
+        final Thread t1 = new Thread(l1);
+        final Thread t2 = new Thread(l2);
         t1.start();
         t2.start();
         t1.join();
         t2.join();
 
-        final AmazonDynamoDBLockClient lockClient1 = ref1.get();
-        final AmazonDynamoDBLockClient lockClient2 = ref2.get();
-
-        assertNotNull(lockClient1);
-        assertNotNull(lockClient2);
-        assertNotSame(lockClient1, lockClient2);
+        final String on1 = l1.getOwnerName();
+        final String on2 = l2.getOwnerName();
+        assertNotNull(on1);
+        assertNotNull(on2);
+        assertNotEquals(on1, on2);
     }
 
     @Test
     public void testLock_BetweenTwoThreads() throws InterruptedException {
 
-        final AtomicReference<LockItem> ref = new AtomicReference<>();
         final AtomicInteger i = new AtomicInteger(0);
         final String pKey = UUID.randomUUID().toString();
         final String sKey = UUID.randomUUID().toString();
 
         final Thread t1 = new Thread(() -> {
 
-            final AmazonDynamoDBLockClient client = this.beanFactory.getBean(AmazonDynamoDBLockClient.class);
-            synchronized (ref) {
+            final AmazonDynamoDBLockClient lockClient = this.beanFactory.getBean(AmazonDynamoDBLockClient.class);
+            LockItem lockItem = null;
+            synchronized (i) {
                 try {
-                    final LockItem lock = client.acquireLock(AcquireLockOptions
+                    lockItem = lockClient.acquireLock(AcquireLockOptions
                             .builder(pKey)
                             .withSortKey(sKey)
                             .withDeleteLockOnRelease(true)
                             .build());
-                    assertNotNull(lock);
-                    assertTrue(client.hasLock(pKey, Optional.of(sKey)));
-                    ref.set(lock);
+                    assertNotNull(lockItem);
+                    assertTrue(lockClient.hasLock(pKey, Optional.of(sKey)));
                     i.getAndIncrement();
                 } catch (BeansException | LockNotGrantedException | InterruptedException e) {
                     //
                 }
-                ref.notify();
+                i.notify();
             }
 
-            synchronized (ref) {
+            synchronized (i) {
                 while (i.get() < 2) {
                     try {
-                        ref.wait(500);
+                        i.wait(500);
                     } catch (InterruptedException e) {
                         //
                     }
                 }
             }
 
-            final LockItem lock = ref.get();
-            client.releaseLock(lock);
-            assertNotNull(lock);
-            assertFalse(client.hasLock(pKey, Optional.of(sKey)));
+            if (lockItem != null) {
+                lockClient.releaseLock(lockItem);
+            }
+            assertFalse(lockClient.hasLock(pKey, Optional.of(sKey)));
         });
 
         final Thread t2 = new Thread(() -> {
 
-            final AmazonDynamoDBLockClient client = this.beanFactory.getBean(AmazonDynamoDBLockClient.class);
-            synchronized (ref) {
+            final AmazonDynamoDBLockClient lockClient = this.beanFactory.getBean(AmazonDynamoDBLockClient.class);
+            synchronized (i) {
                 while (i.get() < 1) {
                     try {
-                        ref.wait(500);
+                        i.wait(500);
                     } catch (InterruptedException e) {
                         //
                     }
                 }
             }
 
-            final LockItem lock = ref.get();
-            assertNotNull(lock);
-            assertFalse(client.hasLock(pKey, Optional.of(sKey)));
+            assertFalse(lockClient.hasLock(pKey, Optional.of(sKey)));
             i.getAndIncrement();
 
-            synchronized(ref) {
-                ref.notify();
+            synchronized (i) {
+                i.notify();
             }
         });
 

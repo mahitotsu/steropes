@@ -6,6 +6,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Scope;
@@ -17,6 +18,8 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 @Configuration
 public class LockConfig {
+
+    private static final String FAILSAFE_HOSTNAME = UUID.randomUUID().toString();
 
     @Autowired
     private DynamoDbClient dynamoDbClient;
@@ -35,12 +38,12 @@ public class LockConfig {
             return Inet4Address.getLocalHost().getHostName();
         } catch (UnknownHostException e) {
             final String hostname = System.getenv("HOSTNAME");
-            return hostname != null ? hostname : UUID.randomUUID().toString();
+            return hostname != null ? hostname : FAILSAFE_HOSTNAME;
         }
     }
 
     @Bean
-    @Scope("threadlocal")
+    @Scope(BeanDefinition.SCOPE_PROTOTYPE)
     public AmazonDynamoDBLockClient amazonDynamoDBLockClient() {
 
         final AmazonDynamoDBLockClientOptions options = AmazonDynamoDBLockClientOptions
