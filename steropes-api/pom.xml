@@ -14,8 +14,20 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.awspring.cloud</groupId>
             <artifactId>spring-cloud-aws-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>dsql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
@@ -98,6 +110,7 @@
         <java.version>23</java.version>
         <aws.java.sdk.version>2.30.36</aws.java.sdk.version>
         <io.awspring.cloud.version>3.3.0</io.awspring.cloud.version>
+        <aws.dsql.endpoint>4iabtwnq2j55iez4j4bkykghgm.dsql.us-east-1.on.aws</aws.dsql.endpoint>
     </properties>
 
     <build>
@@ -134,6 +147,10 @@
                     <argLine>-javaagent:"${org.mockito:mockito-core:jar}" -Xshare:off</argLine>
                     <environmentVariables>
                         <AWS_REGION>us-east-1</AWS_REGION>
+                        <SPRING_DATASOURCE_URL>jdbc:postgresql://${aws.dsql.endpoint}/postgres</SPRING_DATASOURCE_URL>
+                        <SPRING_DATASOURCE_USERNAME>admin</SPRING_DATASOURCE_USERNAME>
+                        <SPRING_DATASOURCE_PASSWORD>dummy</SPRING_DATASOURCE_PASSWORD>
+                        <SPRING_DATASOURCE_PROPERTIES_SSLMODE>REQUIRE</SPRING_DATASOURCE_PROPERTIES_SSLMODE>
                     </environmentVariables>
                 </configuration>
             </plugin>

@@ -85,4 +85,26 @@ public class LockTemplateTest extends TestMain {
             return true;
         });
     }
+
+    @Test
+    public void testNestedLock_NotReentrantLock() {
+
+        final LockRequest req1 = LockRequest.builder().pKey(UUID.randomUUID().toString())
+                .sKey(UUID.randomUUID().toString()).build();
+        final LockRequest req2 = LockRequest.builder().pKey(UUID.randomUUID().toString())
+                .sKey(UUID.randomUUID().toString()).build();
+
+        this.lockTemplate.execute(req1, (l1) -> {
+            assertFalse(l1.isExpired());
+            this.lockTemplate.execute(req2, (l2) -> {
+                assertFalse(l1.isExpired());
+                assertFalse(l2.isExpired());
+                assertNotSame(l1, l2);
+                assertNotEquals(l1, l2);
+                return true;
+            });
+            assertFalse(l1.isExpired());
+            return true;
+        });
+    }
 }

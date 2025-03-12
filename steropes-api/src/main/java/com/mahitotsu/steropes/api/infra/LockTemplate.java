@@ -1,5 +1,6 @@
 package com.mahitotsu.steropes.api.infra;
 
+import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -35,19 +36,42 @@ public class LockTemplate {
         private String sKey;
     }
 
+    @Data
+    @Getter
+    @Setter(AccessLevel.NONE)
+    @Builder
+    private static class LockClientHolder {
+        private AmazonDynamoDBLockClient lockClient;
+        boolean created;
+    }
+
     @Autowired
     private BeanFactory beanFactory;
 
-    private AmazonDynamoDBLockClient getLockClient() {
+    private LockClientHolder getLockClient() {
 
         final AmazonDynamoDBLockClient hold = lockClientHolder.get();
         if (hold != null) {
-            return hold;
+            return LockClientHolder.builder().lockClient(hold).created(false).build();
         }
         final AmazonDynamoDBLockClient newClient = this.beanFactory.getBean(
                 AmazonDynamoDBLockClient.class);
         lockClientHolder.set(newClient);
-        return newClient;
+        return LockClientHolder.builder().lockClient(newClient).created(true).build();
+    }
+
+    private void cleanupLockClient(final LockClientHolder holder) {
+
+        if (holder.isCreated() == false) {
+            return;
+        }
+
+        try {
+            lockClientHolder.remove();
+            holder.getLockClient().close();
+        } catch (IOException e) {
+            //
+        }
     }
 
     public <T> T execute(final LockRequest request, final Supplier<? extends T> action) {
@@ -56,7 +80,8 @@ public class LockTemplate {
 
     public <T> T execute(final LockRequest request, final Function<LockItem, T> action) {
 
-        final AmazonDynamoDBLockClient lockClient = this.getLockClient();
+        final LockClientHolder holder = this.getLockClient();
+        final AmazonDynamoDBLockClient lockClient = holder.getLockClient();
         LockItem lockItem = null;
         boolean requireNewLock = true;
 
@@ -83,7 +108,7 @@ public class LockTemplate {
         } finally {
             if (lockItem != null && requireNewLock) {
                 lockClient.releaseLock(lockItem);
-                lockClientHolder.remove();
+                this.cleanupLockClient(holder);
             }
         }
     }
