@@ -20,6 +20,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.datasource.DelegatingDataSource;
 import org.springframework.lang.NonNull;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.interceptor.DefaultTransactionAttribute;
+import org.springframework.transaction.interceptor.TransactionAttribute;
+import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -135,5 +140,27 @@ public class DbConfig {
 
         hikariDataSource.setDataSource(targetDataSource);
         return hikariDataSource;
+    }
+
+    @Bean
+    @Qualifier("rw")
+    public TransactionOperations rwTxOperations(final PlatformTransactionManager txMgr) {
+
+        final DefaultTransactionAttribute txAtr = new DefaultTransactionAttribute();
+        txAtr.setReadOnly(false);
+        txAtr.setIsolationLevel(TransactionAttribute.ISOLATION_REPEATABLE_READ);
+
+        return new TransactionTemplate(txMgr, txAtr);
+    }
+
+    @Bean
+    @Qualifier("ro")
+    public TransactionOperations roTxOperations(final PlatformTransactionManager txMgr) {
+
+        final DefaultTransactionAttribute txAtr = new DefaultTransactionAttribute();
+        txAtr.setReadOnly(false);
+        txAtr.setIsolationLevel(TransactionAttribute.ISOLATION_REPEATABLE_READ);
+
+        return new TransactionTemplate(txMgr, txAtr);
     }
 }

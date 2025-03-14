@@ -13,12 +13,12 @@ import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
 @TestConfiguration
 public class DataConfig {
-
+    
     @Autowired
     private ResourceLoader resourceLoader;
 
     @Bean
-    public DataSourceInitializer dataSourceInitializer(final DataSource dataSource) {
+    public DataSourceInitializer dataSourceInitializer(@Autowired final DataSource dataSource) {
 
         final DataSourceInitializer initializer = new DataSourceInitializer();
 
@@ -37,5 +37,4 @@ public class DataConfig {
 
         return initializer;
     }
-    
 }
