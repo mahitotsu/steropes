@@ -12,6 +12,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -26,7 +27,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 public class AccountTransactionRecord {
-    
+
     @GeneratedValue
     @Id
     @Column(name = "transaction_id", unique = true, nullable = false, insertable = false, updatable = false)
@@ -37,6 +38,11 @@ public class AccountTransactionRecord {
     @NotNull
     @Valid
     private AccountRecord account;
+
+    @Column(name = "sequence_number", nullable = false, insertable = true, updatable = false)
+    @NotNull
+    @Min(1)
+    private Integer sequenceNumber;
 
     @Column(name = "amount", nullable = false, insertable = true, updatable = false)
     @NotNull

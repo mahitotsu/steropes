@@ -1,52 +1,28 @@
-package com.mahitotsu.steropes.api.service;
+package com.mahitotsu.steropes.api.model.impl;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionOperations;
 
 import com.mahitotsu.steropes.api.dao.AccountDAO;
 import com.mahitotsu.steropes.api.dao.AccountRecord;
+import com.mahitotsu.steropes.api.dao.AccountTransactionDAO;
 import com.mahitotsu.steropes.api.infra.LockTemplate;
-import com.mahitotsu.steropes.api.infra.LockTemplate.LockRequest;
+import com.mahitotsu.steropes.api.model.Account;
+import com.mahitotsu.steropes.api.model.AccountRepository;
 
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
-
-@Service
-public class AccountService {
-
-    @EqualsAndHashCode
-    @ToString
-    private static class AccountImpl implements Account {
-
-        public AccountImpl(final AccountRecord accountRecord) {
-            this.accountRecord = accountRecord;
-        }
-
-        private final AccountRecord accountRecord;
-
-        @Override
-        public String getBranchNumber() {
-            return this.accountRecord.getBranchNumber();
-        }
-
-        @Override
-        public String getAccountNumber() {
-            return this.accountRecord.getAccountNumber();
-        }
-
-        @Override
-        public BigDecimal getMaxBalance() {
-            return this.accountRecord.getMaxBalance();
-        }
-    }
+@Component
+public class AccountRepositoryBean implements AccountRepository {
 
     @Autowired
     private AccountDAO accountDAO;
+
+    @Autowired
+    private AccountTransactionDAO accountTransactionDAO;
 
     @Autowired
     @Qualifier("rw")
@@ -61,8 +37,13 @@ public class AccountService {
 
     public Account openAccount(final String branchNumber, final BigDecimal maxBalance) {
 
-        return this.lockOperations.execute(LockRequest.builder().pKey("BRANCH_LOCK").sKey(branchNumber).build(),
+        return this.lockOperations.execute(LockRequests.branchLock(branchNumber),
                 () -> this.rwTxOperations.execute(_ -> this._openAccount(branchNumber, maxBalance)));
+    }
+
+    private Account createAccount(final AccountRecord accountRecord) {
+        return new AccountBean(accountRecord, this.accountTransactionDAO,
+                this.rwTxOperations, this.roTxOperations, this.lockOperations);
     }
 
     private Account _openAccount(final String branchNumber, final BigDecimal maxBalance) {
@@ -80,13 +61,13 @@ public class AccountService {
                 .build()).getAccountId();
         final AccountRecord accountRecord = this.accountDAO.findById(accountId).orElse(null);
 
-        return accountRecord == null ? null : new AccountImpl(accountRecord);
+        return accountRecord == null ? null : this.createAccount(accountRecord);
     }
 
     public Account getAccount(final String branchNumber, final String accountNumber) {
 
         return this.roTxOperations
                 .execute(_ -> this.accountDAO.findOneByBranchNumberAndAccountNumber(branchNumber, accountNumber)
-                        .map(record -> new AccountImpl(record)).orElse(null));
+                        .map(record -> this.createAccount(record)).orElse(null));
     }
 }
