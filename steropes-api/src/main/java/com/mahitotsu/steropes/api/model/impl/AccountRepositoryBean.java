@@ -37,7 +37,7 @@ public class AccountRepositoryBean implements AccountRepository {
 
     public Account openAccount(final String branchNumber, final BigDecimal maxBalance) {
 
-        return this.lockOperations.execute(LockRequests.branchLock(branchNumber),
+        return this.lockOperations.doWithLock(LockRequests.branchLock(branchNumber),
                 () -> this.rwTxOperations.execute(_ -> this._openAccount(branchNumber, maxBalance)));
     }
 

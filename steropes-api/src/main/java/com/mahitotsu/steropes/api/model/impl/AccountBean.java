@@ -68,7 +68,7 @@ public class AccountBean implements Account {
 
     @Override
     public BigDecimal deposit(final BigDecimal amount) {
-        return this.lockOperations.execute(
+        return this.lockOperations.doWithLock(
                 LockRequests.accountLock(this.accountRecord.getBranchNumber(), this.accountRecord.getAccountNumber()),
                 () -> this.rwTxOperations.execute(_ -> this._deposit(amount).getNewBalane()));
     }
@@ -93,7 +93,7 @@ public class AccountBean implements Account {
 
     @Override
     public BigDecimal withdraw(final BigDecimal amount) {
-        return this.lockOperations.execute(
+        return this.lockOperations.doWithLock(
                 LockRequests.accountLock(this.accountRecord.getBranchNumber(), this.accountRecord.getAccountNumber()),
                 () -> this.rwTxOperations.execute(_ -> this._withdraw(amount).getNewBalane()));
     }

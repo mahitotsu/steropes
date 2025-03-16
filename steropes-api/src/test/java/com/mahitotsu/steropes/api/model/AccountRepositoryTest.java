@@ -12,6 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -87,7 +88,7 @@ public class AccountRepositoryTest extends TestMain {
     }
 
     @Test
-    public void testAccountTransaction_Multi_Parallel() throws InterruptedException {
+    public void testAccountTransaction_Multi_Parallel_SingleBranch() throws InterruptedException {
 
         final String branchNumber = randomBranchNumber();
         final BigDecimal maxBalance = new BigDecimal("1000.00");
@@ -99,11 +100,43 @@ public class AccountRepositoryTest extends TestMain {
         final Callable<BigDecimal> withdrawTask = () -> account.withdraw(new BigDecimal("10.00"));
         final List<Callable<BigDecimal>> tasks = IntStream.range(0, 10)
                 .mapToObj(i -> i % 2 == 0 ? depositTask : withdrawTask)
-                .collect(Collectors.toList());
+                .toList();
 
         final ExecutorService executor = Executors.newFixedThreadPool(4);
         executor.invokeAll(tasks);
 
         assertEquals(new BigDecimal("550.00"), account.getCurrentBalance());
+    }
+
+    @Test
+    public void testAccountTransaction_Multi_Parallel_MultiBranches() throws InterruptedException {
+
+        final String branchNumber1 = randomBranchNumber();
+        final String branchNumber2 = randomBranchNumber();
+        final BigDecimal maxBalance = new BigDecimal("1000.00");
+
+        final Account account1 = this.accountService.openAccount(branchNumber1, maxBalance);
+        final Account account2 = this.accountService.openAccount(branchNumber2, maxBalance);
+        account1.deposit(new BigDecimal("100.00"));
+        account2.deposit(new BigDecimal("100.00"));
+
+        final Callable<BigDecimal> depositTask1 = () -> account1.deposit(new BigDecimal("100.00"));
+        final Callable<BigDecimal> withdrawTask1 = () -> account1.withdraw(new BigDecimal("10.00"));
+        final List<Callable<BigDecimal>> tasks1 = IntStream.range(0, 10)
+                .mapToObj(i -> i % 2 == 0 ? depositTask1 : withdrawTask1)
+                .toList();
+
+        final Callable<BigDecimal> depositTask2 = () -> account2.deposit(new BigDecimal("100.00"));
+        final Callable<BigDecimal> withdrawTask2 = () -> account2.withdraw(new BigDecimal("10.00"));
+        final List<Callable<BigDecimal>> tasks2 = IntStream.range(0, 10)
+                .mapToObj(i -> i % 2 == 0 ? depositTask2 : withdrawTask2)
+                .toList();
+
+        final ExecutorService executor = Executors.newFixedThreadPool(4);
+        final List<Callable<BigDecimal>> tasks = Stream.concat(tasks1.stream(), tasks2.stream()).toList();
+        executor.invokeAll(tasks);
+
+        assertEquals(new BigDecimal("550.00"), account1.getCurrentBalance());
+        assertEquals(new BigDecimal("550.00"), account2.getCurrentBalance());
     }
 }

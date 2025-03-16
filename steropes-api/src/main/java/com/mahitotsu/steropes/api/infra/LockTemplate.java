@@ -1,7 +1,10 @@
 package com.mahitotsu.steropes.api.infra;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Optional;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -31,9 +34,17 @@ public class LockTemplate {
     @Getter
     @Setter(AccessLevel.NONE)
     @Builder
-    public static class LockRequest {
+    public static class LockRequest implements Comparable<LockRequest> {
         private String pKey;
         private String sKey;
+
+        @Override
+        public int compareTo(final LockRequest o) {
+            if (this.pKey.equals(o.pKey)) {
+                return this.sKey.compareTo(o.sKey);
+            }
+            return this.pKey.compareTo(o.pKey);
+        }
     }
 
     @Data
@@ -74,11 +85,30 @@ public class LockTemplate {
         }
     }
 
-    public <T> T execute(final LockRequest request, final Supplier<? extends T> action) {
-        return this.execute(request, (_) -> action.get());
+    public <T> T doWithLocks(final Collection<LockRequest> requests, final Supplier<T> action) {
+        return this._doWithLocks(new TreeSet<>(requests), action);
     }
 
-    public <T> T execute(final LockRequest request, final Function<LockItem, T> action) {
+    private <T> T _doWithLocks(final SortedSet<LockRequest> requests, final Supplier<T> action) {
+        if (requests.isEmpty()) {
+            return this.doWithLock(null, action);
+        } else if (requests.size() == 1) {
+            return this.doWithLock(requests.iterator().next(), action);
+        } else {
+            requests.removeFirst();
+            return this._doWithLocks(requests, action);
+        }
+    }
+
+    public <T> T doWithLock(final LockRequest request, final Supplier<T> action) {
+        return this.doWithLock(request, _ -> action.get());
+    }
+
+    public <T> T doWithLock(final LockRequest request, final Function<LockItem, T> action) {
+
+        if (request == null) {
+            return action.apply(null);
+        }
 
         final LockClientHolder holder = this.getLockClient();
         final AmazonDynamoDBLockClient lockClient = holder.getLockClient();
@@ -91,7 +121,7 @@ public class LockTemplate {
                     .builder(request.pKey)
                     .withTimeUnit(TimeUnit.MILLISECONDS)
                     .withReentrant(true)
-                    .withRefreshPeriod(500L)
+                    .withRefreshPeriod(100L)
                     .withDeleteLockOnRelease(true);
             if (request.getSKey() != null) {
                 builder.withSortKey(request.sKey);
