@@ -1,8 +1,11 @@
 package com.mahitotsu.steropes.api.model.impl;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.transaction.support.TransactionOperations;
 
@@ -11,8 +14,10 @@ import com.mahitotsu.steropes.api.dao.AccountTransactionDAO;
 import com.mahitotsu.steropes.api.dao.AccountTransactionRecord;
 import com.mahitotsu.steropes.api.infra.LockTemplate;
 import com.mahitotsu.steropes.api.model.Account;
+import com.mahitotsu.steropes.api.model.AccountTransaction;
 
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.ToString;
 
 @EqualsAndHashCode
@@ -59,7 +64,7 @@ public class AccountBean implements Account {
     @Override
     public BigDecimal getCurrentBalance() {
         return this.roTxOperations.execute(_ -> this.getLastTransaction(accountRecord))
-                .map(t -> t.getNewBalane()).orElseGet(() -> new BigDecimal("0.00"));
+                .map(t -> t.getNewBalance()).orElseGet(() -> new BigDecimal("0.00"));
     }
 
     private Optional<AccountTransactionRecord> getLastTransaction(final AccountRecord account) {
@@ -71,13 +76,13 @@ public class AccountBean implements Account {
     public BigDecimal deposit(final BigDecimal amount) {
         return this.lockOperations.execute(
                 LockRequests.accountLock(this.accountRecord.getBranchNumber(), this.accountRecord.getAccountNumber()),
-                () -> this.rwTxOperations.execute(_ -> this._deposit(amount).getNewBalane()));
+                () -> this.rwTxOperations.execute(_ -> this._deposit(amount).getNewBalance()));
     }
 
     private AccountTransactionRecord _deposit(final BigDecimal amount) {
 
         final AccountTransactionRecord lastTx = this.getLastTransaction(this.accountRecord).orElse(null);
-        final BigDecimal newBalance = lastTx == null ? amount : lastTx.getNewBalane().add(amount);
+        final BigDecimal newBalance = lastTx == null ? amount : lastTx.getNewBalance().add(amount);
         if (newBalance.compareTo(this.accountRecord.getMaxBalance()) >= 0) {
             throw new IllegalArgumentException("Exceeds max balance");
         }
@@ -87,7 +92,7 @@ public class AccountBean implements Account {
                 .account(this.accountRecord)
                 .sequenceNumber(sequenceNumber)
                 .amount(amount)
-                .newBalane(newBalance)
+                .newBalance(newBalance)
                 .build();
         return this.accountTransactionDAO.save(newTx);
     }
@@ -96,13 +101,13 @@ public class AccountBean implements Account {
     public BigDecimal withdraw(final BigDecimal amount) {
         return this.lockOperations.execute(
                 LockRequests.accountLock(this.accountRecord.getBranchNumber(), this.accountRecord.getAccountNumber()),
-                () -> this.rwTxOperations.execute(_ -> this._withdraw(amount).getNewBalane()));
+                () -> this.rwTxOperations.execute(_ -> this._withdraw(amount).getNewBalance()));
     }
 
     private AccountTransactionRecord _withdraw(final BigDecimal amount) {
 
         final AccountTransactionRecord lastTx = this.getLastTransaction(this.accountRecord).orElse(null);
-        final BigDecimal newBalance = lastTx == null ? amount : lastTx.getNewBalane().subtract(amount);
+        final BigDecimal newBalance = lastTx == null ? amount : lastTx.getNewBalance().subtract(amount);
         if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Exceeds current balance");
         }
@@ -111,8 +116,8 @@ public class AccountBean implements Account {
         final AccountTransactionRecord newTx = AccountTransactionRecord.builder()
                 .account(this.accountRecord)
                 .sequenceNumber(sequenceNumber)
-                .amount(amount)
-                .newBalane(newBalance)
+                .amount(amount.negate())
+                .newBalance(newBalance)
                 .build();
         return this.accountTransactionDAO.save(newTx);
     }
@@ -126,5 +131,29 @@ public class AccountBean implements Account {
                     destination.deposit(amount);
                     return newBalance;
                 }));
+    }
+
+    @Override
+    public List<AccountTransaction> getRecentTransactions() {
+        return this.roTxOperations
+                .execute(_ -> this.accountTransactionDAO.findByAccountOrderBySequenceNumberDesc(this.accountRecord)
+                        .map(r -> new AccountTransactionBean(r))
+                        .collect(Collectors.toCollection(() -> new ArrayList<AccountTransaction>())));
+    }
+
+    @Getter
+    @ToString
+    @EqualsAndHashCode
+    private static class AccountTransactionBean implements AccountTransaction {
+
+        AccountTransactionBean(final AccountTransactionRecord record) {
+            this.sequenceNumber = record.getSequenceNumber();
+            this.amount = record.getAmount();
+            this.newBalance =  record.getNewBalance();
+        }
+
+        private int sequenceNumber;
+        private BigDecimal amount;
+        private BigDecimal newBalance;
     }
 }

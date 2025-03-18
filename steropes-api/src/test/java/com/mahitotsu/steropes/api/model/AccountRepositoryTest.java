@@ -180,5 +180,15 @@ public class AccountRepositoryTest extends TestMain {
 
         assertEquals(new BigDecimal("550.00"), account1.getCurrentBalance());
         assertEquals(new BigDecimal("450.00"), account2.getCurrentBalance());
+
+        final List<AccountTransaction> history1 = account1.getRecentTransactions();
+        final List<AccountTransaction> history2 = account2.getRecentTransactions();
+        assertEquals(11, history1.size());
+        assertEquals(11, history2.size());
+
+        for (int i = 0; i < history1.size() - 1; i++) {
+            assertEquals(history1.get(i).getAmount(), history2.get(i).getAmount().negate());
+        }
+        assertEquals(history1.get(history1.size() - 1).getAmount(), history2.get(history2.size() - 1).getAmount());
     }
 }

@@ -25,6 +25,7 @@ import com.amazonaws.services.dynamodbv2.AcquireLockOptions.AcquireLockOptionsBu
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBLockClient;
 import com.amazonaws.services.dynamodbv2.LockItem;
 import com.amazonaws.services.dynamodbv2.model.LockCurrentlyUnavailableException;
+import com.amazonaws.services.dynamodbv2.model.LockNotGrantedException;
 
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -143,7 +144,18 @@ public class LockTemplate {
                 }
                 final boolean requireNewLock = (lockClient.hasLock(request.getPKey(),
                         Optional.ofNullable(request.getSKey())) == false);
-                final LockItem lockItem = lockClient.acquireLock(builder.build());
+                LockItem lockItem = null;
+                int retryCount = 5;
+                while (lockItem == null && retryCount > 0) {
+                    try {
+                        lockItem = lockClient.acquireLock(builder.build());
+                    } catch (LockNotGrantedException e) {
+                        retryCount--;
+                        if (retryCount <= 0) {
+                            throw e;
+                        }
+                    }
+                }
 
                 lockStack.push(lockItem);
                 lockMap.put(lockItem, requireNewLock);

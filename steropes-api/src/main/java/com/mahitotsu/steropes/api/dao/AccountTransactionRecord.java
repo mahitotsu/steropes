@@ -52,5 +52,5 @@ public class AccountTransactionRecord {
     @Column(name = "new_balance", nullable = false, insertable = true, updatable = false)
     @NotNull
     @Digits(integer = 16, fraction = 2)
-    private BigDecimal newBalane;
+    private BigDecimal newBalance;
 }

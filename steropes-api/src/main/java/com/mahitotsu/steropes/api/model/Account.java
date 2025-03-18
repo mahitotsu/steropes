@@ -1,6 +1,7 @@
 package com.mahitotsu.steropes.api.model;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public interface Account {
 
@@ -17,4 +18,6 @@ public interface Account {
     BigDecimal withdraw(BigDecimal amount);
 
     BigDecimal transfer(Account destination, BigDecimal amount);
+
+    List<AccountTransaction> getRecentTransactions();
 }
