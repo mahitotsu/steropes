@@ -1,6 +1,7 @@
 package com.mahitotsu.steropes.api.infra;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.lenient;
 
 import java.util.Arrays;
 import java.util.List;
@@ -104,6 +105,23 @@ public class LockTemplateTest extends TestMain {
                 return true;
             });
             assertFalse(l1.isExpired());
+            return true;
+        });
+    }
+
+    @Test
+    public void testMultiLocks() {
+
+        final LockRequest req1 = LockRequest.builder().pKey(UUID.randomUUID().toString())
+                .sKey(UUID.randomUUID().toString()).build();
+        final LockRequest req2 = LockRequest.builder().pKey(UUID.randomUUID().toString())
+                .sKey(UUID.randomUUID().toString()).build();
+
+        this.lockTemplate.execute(Arrays.asList(req1, req2), (items) -> {
+            assertEquals(2, items.size());
+            assertFalse(items.getFirst().isExpired());
+            assertFalse(items.getLast().isExpired());
+            assertNotEquals(items.getFirst(), items.getLast());
             return true;
         });
     }

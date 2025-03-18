@@ -24,7 +24,7 @@ public class AccountRepositoryTest extends TestMain {
     private static final Random RANDOM = new Random();
 
     @Autowired
-    private AccountRepository accountService;
+    private AccountRepository accountRepository;
 
     private String randomBranchNumber() {
         return String.format("%03d", RANDOM.nextInt(1000));
@@ -36,13 +36,13 @@ public class AccountRepositoryTest extends TestMain {
         final String branchNumber = randomBranchNumber();
         final BigDecimal maxBalance = new BigDecimal("1000.00");
 
-        final Account opened = accountService.openAccount(branchNumber, maxBalance);
+        final Account opened = accountRepository.openAccount(branchNumber, maxBalance);
         assertNotNull(opened);
         assertNotNull(opened.getAccountNumber());
         assertEquals(maxBalance, opened.getMaxBalance());
         assertEquals(new BigDecimal("0.00"), opened.getCurrentBalance());
 
-        final Account found = accountService.getAccount(branchNumber, opened.getAccountNumber());
+        final Account found = accountRepository.getAccount(branchNumber, opened.getAccountNumber());
         assertNotNull(found);
         assertEquals(opened, found);
     }
@@ -53,7 +53,7 @@ public class AccountRepositoryTest extends TestMain {
         final String branchNumber = randomBranchNumber();
         final BigDecimal maxBalance = new BigDecimal("1000.00");
 
-        final Callable<Account> task = () -> accountService.openAccount(branchNumber, maxBalance);
+        final Callable<Account> task = () -> accountRepository.openAccount(branchNumber, maxBalance);
         final List<Callable<Account>> tasks = IntStream.range(0, 10).mapToObj(_ -> task).collect(Collectors.toList());
         final ExecutorService executor = Executors.newFixedThreadPool(4);
 
@@ -74,7 +74,7 @@ public class AccountRepositoryTest extends TestMain {
         final String branchNumber = randomBranchNumber();
         final BigDecimal maxBalance = new BigDecimal("1000.00");
 
-        final Account account = this.accountService.openAccount(branchNumber, maxBalance);
+        final Account account = this.accountRepository.openAccount(branchNumber, maxBalance);
         assertEquals(new BigDecimal("0.00"), account.getCurrentBalance());
 
         account.deposit(new BigDecimal("10.00"));
@@ -93,7 +93,7 @@ public class AccountRepositoryTest extends TestMain {
         final String branchNumber = randomBranchNumber();
         final BigDecimal maxBalance = new BigDecimal("1000.00");
 
-        final Account account = this.accountService.openAccount(branchNumber, maxBalance);
+        final Account account = this.accountRepository.openAccount(branchNumber, maxBalance);
         account.deposit(new BigDecimal("100.00"));
 
         final Callable<BigDecimal> depositTask = () -> account.deposit(new BigDecimal("100.00"));
@@ -115,8 +115,8 @@ public class AccountRepositoryTest extends TestMain {
         final String branchNumber2 = randomBranchNumber();
         final BigDecimal maxBalance = new BigDecimal("1000.00");
 
-        final Account account1 = this.accountService.openAccount(branchNumber1, maxBalance);
-        final Account account2 = this.accountService.openAccount(branchNumber2, maxBalance);
+        final Account account1 = this.accountRepository.openAccount(branchNumber1, maxBalance);
+        final Account account2 = this.accountRepository.openAccount(branchNumber2, maxBalance);
         account1.deposit(new BigDecimal("100.00"));
         account2.deposit(new BigDecimal("100.00"));
 
@@ -138,5 +138,47 @@ public class AccountRepositoryTest extends TestMain {
 
         assertEquals(new BigDecimal("550.00"), account1.getCurrentBalance());
         assertEquals(new BigDecimal("550.00"), account2.getCurrentBalance());
+    }
+
+    @Test
+    public void testTransfer() {
+
+        final String branchNumber = randomBranchNumber();
+        final BigDecimal maxBalance = new BigDecimal("1000.00");
+
+        final Account account1 = this.accountRepository.openAccount(branchNumber, maxBalance);
+        final Account account2 = this.accountRepository.openAccount(branchNumber, maxBalance);
+        account1.deposit(new BigDecimal("500"));
+        account2.deposit(new BigDecimal("500"));
+
+        final BigDecimal amount = new BigDecimal("300.00");
+        final BigDecimal newBalance1 = account1.transfer(account2, amount);
+        final BigDecimal newBalance2 = account2.getCurrentBalance();
+
+        assertEquals(new BigDecimal("200.00"), newBalance1);
+        assertEquals(new BigDecimal("800.00"), newBalance2);
+    }
+
+    @Test
+    public void testTransfer_Multi_Parallel() throws InterruptedException {
+
+        final String branchNumber = randomBranchNumber();
+        final BigDecimal maxBalance = new BigDecimal("1000.00");
+
+        final Account account1 = this.accountRepository.openAccount(branchNumber, maxBalance);
+        final Account account2 = this.accountRepository.openAccount(branchNumber, maxBalance);
+        account1.deposit(new BigDecimal("500"));
+        account2.deposit(new BigDecimal("500"));
+
+        final Callable<BigDecimal> transfer1to2Task = () -> account1.transfer(account2, new BigDecimal("20.00"));
+        final Callable<BigDecimal> transfer2to1Task = () -> account2.transfer(account1, new BigDecimal("30.00"));
+        final List<Callable<BigDecimal>> tasks = IntStream.range(0, 10)
+                .mapToObj(i -> i % 2 == 0 ? transfer1to2Task : transfer2to1Task).toList();
+
+        final ExecutorService executor = Executors.newFixedThreadPool(4);
+        executor.invokeAll(tasks);
+
+        assertEquals(new BigDecimal("550.00"), account1.getCurrentBalance());
+        assertEquals(new BigDecimal("450.00"), account2.getCurrentBalance());
     }
 }

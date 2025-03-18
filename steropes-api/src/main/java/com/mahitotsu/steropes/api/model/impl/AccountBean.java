@@ -1,6 +1,7 @@
 package com.mahitotsu.steropes.api.model.impl;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Optional;
 
 import org.springframework.transaction.support.TransactionOperations;
@@ -114,5 +115,16 @@ public class AccountBean implements Account {
                 .newBalane(newBalance)
                 .build();
         return this.accountTransactionDAO.save(newTx);
+    }
+
+    @Override
+    public BigDecimal transfer(final Account destination, final BigDecimal amount) {
+        return this.lockOperations.execute(
+                Arrays.asList(LockRequests.accountLock(this), LockRequests.accountLock(destination)),
+                () -> this.rwTxOperations.execute(_ -> {
+                    final BigDecimal newBalance = this.withdraw(amount);
+                    destination.deposit(amount);
+                    return newBalance;
+                }));
     }
 }

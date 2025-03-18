@@ -15,4 +15,6 @@ public interface Account {
     BigDecimal deposit(BigDecimal amount);
 
     BigDecimal withdraw(BigDecimal amount);
+
+    BigDecimal transfer(Account destination, BigDecimal amount);
 }

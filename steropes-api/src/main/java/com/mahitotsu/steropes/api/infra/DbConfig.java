@@ -149,6 +149,7 @@ public class DbConfig {
         final DefaultTransactionAttribute txAtr = new DefaultTransactionAttribute();
         txAtr.setReadOnly(false);
         txAtr.setIsolationLevel(TransactionAttribute.ISOLATION_REPEATABLE_READ);
+        txAtr.setPropagationBehavior(TransactionAttribute.PROPAGATION_REQUIRED);
 
         return new TransactionTemplate(txMgr, txAtr);
     }
@@ -160,6 +161,7 @@ public class DbConfig {
         final DefaultTransactionAttribute txAtr = new DefaultTransactionAttribute();
         txAtr.setReadOnly(false);
         txAtr.setIsolationLevel(TransactionAttribute.ISOLATION_REPEATABLE_READ);
+        txAtr.setPropagationBehavior(TransactionAttribute.PROPAGATION_REQUIRED);
 
         return new TransactionTemplate(txMgr, txAtr);
     }

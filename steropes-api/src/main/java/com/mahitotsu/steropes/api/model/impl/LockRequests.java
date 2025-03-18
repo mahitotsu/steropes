@@ -1,6 +1,7 @@
 package com.mahitotsu.steropes.api.model.impl;
 
 import com.mahitotsu.steropes.api.infra.LockTemplate.LockRequest;
+import com.mahitotsu.steropes.api.model.Account;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -14,5 +15,9 @@ public class LockRequests {
 
     public static LockRequest accountLock(final String branchNumber, final String accountNumber) {
         return LockRequest.builder().pKey("ACCOUNT_LOCK").sKey(branchNumber + accountNumber).build();
+    }
+
+    public static LockRequest accountLock(final Account account) {
+        return LockRequests.accountLock(account.getBranchNumber(), account.getAccountNumber());
     }
 }
