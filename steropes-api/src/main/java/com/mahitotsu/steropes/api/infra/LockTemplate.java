@@ -1,8 +1,15 @@
 package com.mahitotsu.steropes.api.infra;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Optional;
+import java.util.SequencedCollection;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
@@ -85,61 +92,78 @@ public class LockTemplate {
         }
     }
 
-    public <T> T doWithLocks(final Collection<LockRequest> requests, final Supplier<T> action) {
-        return this._doWithLocks(new TreeSet<>(requests), action);
+    public <T> T execute(final LockRequest request,
+            final Supplier<T> action) {
+        return this.execute(request, _ -> action.get());
     }
 
-    private <T> T _doWithLocks(final SortedSet<LockRequest> requests, final Supplier<T> action) {
-        if (requests.isEmpty()) {
-            return this.doWithLock(null, action);
-        } else if (requests.size() == 1) {
-            return this.doWithLock(requests.iterator().next(), action);
-        } else {
-            requests.removeFirst();
-            return this._doWithLocks(requests, action);
+    public <T> T execute(final Collection<LockRequest> requests,
+            final Supplier<T> action) {
+        return this.execute(requests, _ -> action.get());
+    }
+
+    public <T> T execute(final LockRequest request,
+            final Function<LockItem, T> action) {
+        return this.execute(Collections.singleton(request), items -> action.apply(items.getFirst()));
+    }
+
+    public <T> T execute(final Collection<LockRequest> requests,
+            final Function<SequencedCollection<LockItem>, T> action) {
+
+        if (action == null) {
+            return null;
         }
-    }
 
-    public <T> T doWithLock(final LockRequest request, final Supplier<T> action) {
-        return this.doWithLock(request, _ -> action.get());
-    }
-
-    public <T> T doWithLock(final LockRequest request, final Function<LockItem, T> action) {
-
-        if (request == null) {
+        if (requests == null || requests.isEmpty()) {
             return action.apply(null);
         }
 
         final LockClientHolder holder = this.getLockClient();
         final AmazonDynamoDBLockClient lockClient = holder.getLockClient();
-        LockItem lockItem = null;
-        boolean requireNewLock = true;
+        final SortedSet<LockRequest> reqSet = new TreeSet<>(requests);
+
+        final Deque<LockItem> lockStack = new ArrayDeque<>(reqSet.size());
+        final Map<LockItem, Boolean> lockMap = new HashMap<>();
 
         try {
+            for (final Iterator<LockRequest> i = reqSet.iterator(); i.hasNext();) {
+                final LockRequest request = i.next();
+                if (request == null) {
+                    continue;
+                }
 
-            final AcquireLockOptionsBuilder builder = AcquireLockOptions
-                    .builder(request.pKey)
-                    .withTimeUnit(TimeUnit.MILLISECONDS)
-                    .withReentrant(true)
-                    .withRefreshPeriod(100L)
-                    .withDeleteLockOnRelease(true);
-            if (request.getSKey() != null) {
-                builder.withSortKey(request.sKey);
+                final AcquireLockOptionsBuilder builder = AcquireLockOptions
+                        .builder(request.pKey)
+                        .withTimeUnit(TimeUnit.MILLISECONDS)
+                        .withReentrant(true)
+                        .withRefreshPeriod(100L)
+                        .withDeleteLockOnRelease(true);
+                if (request.getSKey() != null) {
+                    builder.withSortKey(request.sKey);
+                }
+                final boolean requireNewLock = (lockClient.hasLock(request.getPKey(),
+                        Optional.ofNullable(request.getSKey())) == false);
+                final LockItem lockItem = lockClient.acquireLock(builder.build());
+
+                lockStack.push(lockItem);
+                lockMap.put(lockItem, requireNewLock);
             }
 
-            requireNewLock = (lockClient.hasLock(request.getPKey(),
-                    Optional.ofNullable(request.getSKey())) == false);
-            lockItem = lockClient.acquireLock(builder.build());
-
-            return action != null ? action.apply(lockItem) : null;
+            return action.apply(Collections.unmodifiableSequencedCollection(lockStack));
 
         } catch (InterruptedException e) {
             throw new LockCurrentlyUnavailableException(e);
+
         } finally {
-            if (lockItem != null && requireNewLock) {
-                lockClient.releaseLock(lockItem);
-                this.cleanupLockClient(holder);
+
+            for (final Iterator<LockItem> i = lockStack.reversed().iterator(); i.hasNext();) {
+                final LockItem lockItem = i.next();
+                final Boolean isNewLock = lockMap.get(lockItem);
+                if (isNewLock != null & Boolean.TRUE.equals(isNewLock)) {
+                    lockClient.releaseLock(lockItem);
+                }
             }
+            this.cleanupLockClient(holder);
         }
     }
 }

@@ -24,7 +24,7 @@ public class LockTemplateTest extends TestMain {
     @Test
     public void testLockOwnerName_SameThreads() throws InterruptedException {
 
-        final Callable<String> action = () -> this.lockTemplate.doWithLock(
+        final Callable<String> action = () -> this.lockTemplate.execute(
                 LockRequest.builder().pKey(UUID.randomUUID().toString()).sKey(UUID.randomUUID().toString()).build(),
                 li -> li.getOwnerName());
 
@@ -47,7 +47,7 @@ public class LockTemplateTest extends TestMain {
     @Test
     public void testLockOwnerName_DifferentThreads() throws InterruptedException {
 
-        final Callable<String> action = () -> this.lockTemplate.doWithLock(
+        final Callable<String> action = () -> this.lockTemplate.execute(
                 LockRequest.builder().pKey(UUID.randomUUID().toString()).sKey(UUID.randomUUID().toString()).build(),
                 li -> li.getOwnerName());
 
@@ -73,9 +73,9 @@ public class LockTemplateTest extends TestMain {
         final LockRequest req = LockRequest.builder().pKey(UUID.randomUUID().toString())
                 .sKey(UUID.randomUUID().toString()).build();
 
-        this.lockTemplate.doWithLock(req, (l1) -> {
+        this.lockTemplate.execute(req, (l1) -> {
             assertFalse(l1.isExpired());
-            this.lockTemplate.doWithLock(req, (l2) -> {
+            this.lockTemplate.execute(req, (l2) -> {
                 assertFalse(l1.isExpired());
                 assertFalse(l2.isExpired());
                 assertSame(l1, l2);
@@ -94,9 +94,9 @@ public class LockTemplateTest extends TestMain {
         final LockRequest req2 = LockRequest.builder().pKey(UUID.randomUUID().toString())
                 .sKey(UUID.randomUUID().toString()).build();
 
-        this.lockTemplate.doWithLock(req1, (l1) -> {
+        this.lockTemplate.execute(req1, (l1) -> {
             assertFalse(l1.isExpired());
-            this.lockTemplate.doWithLock(req2, (l2) -> {
+            this.lockTemplate.execute(req2, (l2) -> {
                 assertFalse(l1.isExpired());
                 assertFalse(l2.isExpired());
                 assertNotSame(l1, l2);

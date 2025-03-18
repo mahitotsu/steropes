@@ -155,6 +155,7 @@
                         <SPRING_DATASOURCE_USERNAME>admin</SPRING_DATASOURCE_USERNAME>
                         <SPRING_DATASOURCE_PASSWORD>dummy</SPRING_DATASOURCE_PASSWORD>
                         <SPRING_DATASOURCE_PROPERTIES_SSLMODE>REQUIRE</SPRING_DATASOURCE_PROPERTIES_SSLMODE>
+                        <SPRING_JPA_SHOW_SQL>true</SPRING_JPA_SHOW_SQL>
                     </environmentVariables>
                 </configuration>
             </plugin>
