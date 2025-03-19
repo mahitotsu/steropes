@@ -5,6 +5,9 @@
         },
         {
             "path": "steropes-api"
+        },
+        {
+            "path": "steropes-aws"
         }
     ],
     "settings": {

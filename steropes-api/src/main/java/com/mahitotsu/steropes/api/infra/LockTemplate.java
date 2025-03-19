@@ -144,19 +144,7 @@ public class LockTemplate {
                 }
                 final boolean requireNewLock = (lockClient.hasLock(request.getPKey(),
                         Optional.ofNullable(request.getSKey())) == false);
-                LockItem lockItem = null;
-                int retryCount = 5;
-                while (lockItem == null && retryCount > 0) {
-                    try {
-                        lockItem = lockClient.acquireLock(builder.build());
-                    } catch (LockNotGrantedException e) {
-                        retryCount--;
-                        if (retryCount <= 0) {
-                            throw e;
-                        }
-                    }
-                }
-
+                final LockItem lockItem = lockClient.acquireLock(builder.build());
                 lockStack.push(lockItem);
                 lockMap.put(lockItem, requireNewLock);
             }
@@ -164,8 +152,7 @@ public class LockTemplate {
             return action.apply(Collections.unmodifiableSequencedCollection(lockStack));
 
         } catch (InterruptedException e) {
-            throw new LockCurrentlyUnavailableException(e);
-
+            throw new IllegalStateException("The lock could not be acquired.", e);
         } finally {
 
             for (final Iterator<LockItem> i = lockStack.reversed().iterator(); i.hasNext();) {

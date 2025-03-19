@@ -6,14 +6,18 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
+import com.amazonaws.services.dynamodbv2.model.LockNotGrantedException;
 import com.mahitotsu.steropes.api.model.Account;
 import com.mahitotsu.steropes.api.model.AccountRepository;
 
 import lombok.Data;
 
 @Service
+@Retryable(retryFor = LockNotGrantedException.class, maxAttempts = 3, backoff = @Backoff(delay = 100, multiplier = 1.5, random = true))
 public class AccountService {
 
     @Autowired
