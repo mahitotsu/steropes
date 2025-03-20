@@ -24,8 +24,6 @@ import com.amazonaws.services.dynamodbv2.AcquireLockOptions;
 import com.amazonaws.services.dynamodbv2.AcquireLockOptions.AcquireLockOptionsBuilder;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBLockClient;
 import com.amazonaws.services.dynamodbv2.LockItem;
-import com.amazonaws.services.dynamodbv2.model.LockCurrentlyUnavailableException;
-import com.amazonaws.services.dynamodbv2.model.LockNotGrantedException;
 
 import lombok.AccessLevel;
 import lombok.Builder;

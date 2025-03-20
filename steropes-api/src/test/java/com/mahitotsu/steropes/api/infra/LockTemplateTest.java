@@ -1,7 +1,6 @@
 package com.mahitotsu.steropes.api.infra;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.lenient;
 
 import java.util.Arrays;
 import java.util.List;
