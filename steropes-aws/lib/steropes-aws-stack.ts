@@ -10,7 +10,7 @@ export class SteropesAwsStack extends Stack {
   constructor(scope: Construct, id: string, props?: SteropesAwsStackProps) {
     super(scope, id, props);
 
-    const taskDefinition = new FargateTaskDefinition(this, 'ApiTaskDefinition', { cpu: 1, memoryLimitMiB: 4096, });
+    const taskDefinition = new FargateTaskDefinition(this, 'ApiTaskDefinition', { cpu: 1024, memoryLimitMiB: 4096, });
     taskDefinition.addContainer('main', {
       image: ContainerImage.fromAsset(`${__dirname}/../../steropes-api`),
       portMappings: [{ containerPort: 8080 }],
