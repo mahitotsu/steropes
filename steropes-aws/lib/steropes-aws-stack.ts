@@ -1,4 +1,4 @@
-import { Duration, Stack, StackProps } from "aws-cdk-lib";
+import { CfnOutput, Duration, ScopedAws, Stack, StackProps } from "aws-cdk-lib";
 import { SubnetType, Vpc } from "aws-cdk-lib/aws-ec2";
 import { Cluster, ContainerImage, FargateService, FargateTaskDefinition, LogDriver } from "aws-cdk-lib/aws-ecs";
 import { ApplicationLoadBalancer, ApplicationProtocol, ApplicationTargetGroup, TargetType } from "aws-cdk-lib/aws-elasticloadbalancingv2";
@@ -13,13 +13,14 @@ interface SteropesAwsStackProps extends StackProps {
 export class SteropesAwsStack extends Stack {
   constructor(scope: Construct, id: string, props?: SteropesAwsStackProps) {
     super(scope, id, props);
+    const { accountId, region } = new ScopedAws(this);
 
     const taskDefinition = new FargateTaskDefinition(this, 'ApiTaskDefinition', { cpu: 1024, memoryLimitMiB: 4096, });
     taskDefinition.addContainer('main', {
       image: ContainerImage.fromAsset(`${__dirname}/../../steropes-api`),
       portMappings: [{ containerPort: 8080 }],
       environment: {
-        SPRING_DATASOURCE_URL: `jdbc:postgresql://${props!.dsqlClusterId}.dsql.${props!.env!.region}.on.aws/postgres`,
+        SPRING_DATASOURCE_URL: `jdbc:postgresql://${props!.dsqlClusterId}.dsql.${region}.on.aws/postgres`,
         SPRING_DATASOURCE_USERNAME: 'admin',
         SPRING_DATASOURCE_PASSWORD: 'dummy',
         SPRING_DATASOURCE_PROPERTIES_SSLMODE: 'REQUIRE',
@@ -37,7 +38,7 @@ export class SteropesAwsStack extends Stack {
         'dynamodb:UpdateItem',
         'dynamodb:DescrribeTable',
       ],
-      resources: [`arn:aws:dynamodb:${props!.env!.region}:${props!.env!.account}:table/${props!.lockTable}`],
+      resources: [`arn:aws:dynamodb:${region}:${accountId}:table/${props!.lockTable}`],
     }));
     taskDefinition.addToTaskRolePolicy(new PolicyStatement({
       effect: Effect.ALLOW,
@@ -64,5 +65,7 @@ export class SteropesAwsStack extends Stack {
       healthCheck: { path: '/actuator/health', interval: Duration.seconds(5), timeout: Duration.seconds(2), },
     });
     alb.addListener('ApiListener', { port: 80, open: true, defaultTargetGroups: [targetGroup] });
+
+    new CfnOutput(this, 'ApiUrl', { value: `http://${alb.loadBalancerDnsName}` });
   }
 }
