@@ -15,9 +15,11 @@ import com.mahitotsu.steropes.api.model.Account;
 import com.mahitotsu.steropes.api.model.AccountRepository;
 
 import lombok.Data;
+import software.amazon.awssdk.services.dynamodb.model.ReplicatedWriteConflictException;
 
 @Service
-@Retryable(retryFor = LockNotGrantedException.class, maxAttempts = 3, backoff = @Backoff(delay = 100, multiplier = 1.5, random = true))
+@Retryable(retryFor = { LockNotGrantedException.class,
+        ReplicatedWriteConflictException.class }, maxAttempts = 3, backoff = @Backoff(delay = 100, multiplier = 1.5, random = true))
 public class AccountService {
 
     @Autowired
